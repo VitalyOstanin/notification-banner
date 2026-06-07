@@ -20,10 +20,17 @@ the original, then run `_decorateBanner(this)` on the just-created
 
 - toggles widget visibility (`titleLabel`, `_header.timeLabel`, app icon,
   `_icon`);
-- re-sets the body markup to keep newlines;
+- re-sets the body markup, keeping or collapsing newlines;
 - calls `_expandBanner(true)` to expand;
 - applies inline `set_style` for width / corner radius / font scale / compact
   padding.
+
+`_decorateBanner` is idempotent: each property is set from the current setting in
+both directions (visible/hidden, style/no-style, newlines kept/collapsed), so
+re-running it fully reflects the current configuration rather than only adding
+changes. This lets the settings `changed` handler re-run it on the banner already
+on screen for immediate feedback. The one exception is "Expand immediately",
+which is monotonic — it can expand but does not re-collapse.
 
 Styling is done with per-banner inline styles rather than a generated global
 stylesheet, because each banner is short-lived and freshly created.
@@ -32,9 +39,12 @@ stylesheet, because each banner is short-lived and freshly created.
 
 - One hook covers all content and appearance features; they compose on the same
   freshly built banner.
-- Settings changes apply to the next notification, not to a banner already on
-  screen (acceptable; banners are transient).
+- Because decoration is idempotent, the `changed` handler reapplies it to the
+  banner currently on screen, so settings changes show immediately (the
+  positioning settings already applied instantly).
 - No GNOME method body is patched; the override calls the original unchanged and
   only post-processes its result.
-- `disable()` removes the override via `InjectionManager.clear()`; decorations
-  themselves vanish with the per-notification banners GNOME destroys.
+- `disable()` removes the override via `InjectionManager.clear()` and reverts the
+  decoration on a banner still visible at that moment via `_undecorateBanner`
+  (a direct reset to the stock look, since settings are about to be released).
+  Decorations otherwise vanish with the per-notification banners GNOME destroys.

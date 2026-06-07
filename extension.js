@@ -23,6 +23,15 @@ const V_ALIGN = {
   bottom: Clutter.ActorAlign.END,
 };
 
+// Stock value of the font-scale setting (mirrors the schema <default>): at this
+// value no font-size override is applied, the same way 0 / -1 are the no-op
+// sentinels for banner-width / corner-radius.
+const FONT_SCALE_STOCK = 100;
+// Inline paddings for the compact content box, chosen to roughly halve the stock
+// vertical padding while keeping the text legible.
+const COMPACT_BOX_PADDING = "3px 6px";
+const COMPACT_BOX_SPACING = "4px";
+
 export default class NotificationBannerExtension extends Extension {
   enable() {
     this._settings = this.getSettings();
@@ -90,9 +99,15 @@ export default class NotificationBannerExtension extends Extension {
         },
     );
 
-    this._settingsChangedId = this._settings.connect("changed", () =>
-      this._applyPosition(),
-    );
+    this._settingsChangedId = this._settings.connect("changed", () => {
+      this._applyPosition();
+      // Re-decorate the banner currently on screen so content/appearance
+      // changes apply immediately, matching the instant feedback of position
+      // changes. _decorateBanner is idempotent: it sets each property from the
+      // current settings, so toggling a setting off reverts it on the live
+      // banner too.
+      this._decorateBanner(this._messageTray);
+    });
 
     this._applyPosition();
   }
@@ -116,9 +131,12 @@ export default class NotificationBannerExtension extends Extension {
     bin.translation_y = v === "top" ? padV : v === "bottom" ? -padV : 0;
   }
 
-  // Apply content and appearance settings to a freshly created banner. Requires
-  // the GNOME 46+ banner structure (MessageHeader, _bodyLabel); on GNOME 45 the
-  // structure differs, so this returns early and only positioning applies.
+  // Apply content and appearance settings to the current banner. Idempotent:
+  // every property is set from the current setting in both directions, so this
+  // is run both on a freshly created banner (from the _showNotification
+  // override) and on the live banner when settings change. Requires the GNOME
+  // 46+ banner structure (MessageHeader, _bodyLabel); on GNOME 45 the structure
+  // differs, so this returns early and only positioning applies.
   _decorateBanner(tray) {
     const banner = tray?._banner ?? null;
     const settings = this._settings;
@@ -126,65 +144,106 @@ export default class NotificationBannerExtension extends Extension {
     if (!banner._header || !banner._bodyLabel) return; // pre-46 structure
 
     // Content -----------------------------------------------------------------
+    // Each property below is set from the current setting in both directions, so
+    // re-running this method (on a settings change) fully reflects the current
+    // configuration on the live banner, including toggles turned off.
 
-    // Hide the content title when it duplicates the application name shown in
-    // the header (notification.title === source.title).
-    if (settings.get_boolean("dedupe-title") && banner.titleLabel) {
+    // Hide the content title only while it duplicates the application name shown
+    // in the header (notification.title === source.title); otherwise show it.
+    if (banner.titleLabel) {
       const appName = tray._notification?.source?.title ?? null;
-      if (appName != null && banner.title === appName)
-        banner.titleLabel.visible = false;
+      const duplicate =
+        settings.get_boolean("dedupe-title") &&
+        appName != null &&
+        banner.title === appName;
+      banner.titleLabel.visible = !duplicate;
     }
 
-    // Keep newlines in the body. The stock `set body` collapses them to spaces;
-    // re-set the markup from the original body text instead. The body label is
-    // already line-wrapping; the full text shows when the banner is expanded.
-    if (settings.get_boolean("body-multiline")) {
-      const rawBody = tray._notification?.body ?? "";
-      banner._bodyLabel.setMarkup(rawBody, banner._useBodyMarkup ?? false);
-    }
+    // Body newlines. The stock `set body` collapses newlines to spaces; re-set
+    // the markup from the original body, keeping or collapsing newlines to match
+    // the setting. The full text shows when the banner is expanded.
+    const rawBody = tray._notification?.body ?? "";
+    banner._bodyLabel.setMarkup(
+      settings.get_boolean("body-multiline")
+        ? rawBody
+        : rawBody.replace(/\n/g, " "),
+      banner._useBodyMarkup ?? false,
+    );
 
     // Timestamp.
-    if (!settings.get_boolean("show-timestamp") && banner._header.timeLabel)
-      banner._header.timeLabel.visible = false;
+    if (banner._header.timeLabel)
+      banner._header.timeLabel.visible = settings.get_boolean("show-timestamp");
 
-    // Expand immediately.
-    if (settings.get_boolean("force-expand"))
-      tray._expandBanner?.(true);
+    // Expand immediately. Expansion is monotonic: turning the setting off does
+    // not re-collapse an already expanded banner (GNOME collapses it on its own
+    // timing), so this only ever expands.
+    if (settings.get_boolean("force-expand")) tray._expandBanner?.(true);
 
     // Appearance --------------------------------------------------------------
 
     // App icon (small, in the header) is not stored under a named field; find it
     // by its style class.
-    if (!settings.get_boolean("show-app-icon")) {
-      const appIcon = this._findByStyleClass(
-        banner._header,
-        "message-source-icon",
-      );
-      if (appIcon) appIcon.visible = false;
-    }
+    const appIcon = this._findByStyleClass(banner._header, "message-source-icon");
+    if (appIcon) appIcon.visible = settings.get_boolean("show-app-icon");
 
     // Large notification icon.
-    if (!settings.get_boolean("show-notification-icon") && banner._icon)
-      banner._icon.visible = false;
+    if (banner._icon)
+      banner._icon.visible = settings.get_boolean("show-notification-icon");
 
     // Width / corner radius / font scale on the banner root (which carries both
-    // the `message` and `notification-banner` style classes).
+    // the `message` and `notification-banner` style classes). Rebuild the inline
+    // style each time and clear it (null) when nothing overrides the stock look.
     const width = settings.get_int("banner-width");
     const radius = settings.get_int("corner-radius");
     const fontScale = settings.get_int("font-scale");
     const rootStyle = [];
     if (width > 0) rootStyle.push(`width: ${width}px;`);
     if (radius >= 0) rootStyle.push(`border-radius: ${radius}px;`);
-    if (fontScale !== 100) rootStyle.push(`font-size: ${fontScale}%;`);
-    if (rootStyle.length) banner.set_style(rootStyle.join(" "));
+    if (fontScale !== FONT_SCALE_STOCK)
+      rootStyle.push(`font-size: ${fontScale}%;`);
+    banner.set_style(rootStyle.length ? rootStyle.join(" ") : null);
 
-    // Compact: trim the internal paddings of the header and content box.
+    // Compact: trim the internal paddings of the header and content box; clear
+    // the inline style when the setting is off.
+    const header = this._findByStyleClass(banner, "message-header");
+    const box = this._findByStyleClass(banner, "message-box");
     if (settings.get_boolean("compact")) {
-      const header = this._findByStyleClass(banner, "message-header");
-      const box = this._findByStyleClass(banner, "message-box");
       if (header) header.set_style("padding-bottom: 0; min-height: 0;");
-      if (box) box.set_style("padding: 3px 6px; spacing: 4px;");
+      if (box)
+        box.set_style(
+          `padding: ${COMPACT_BOX_PADDING}; spacing: ${COMPACT_BOX_SPACING};`,
+        );
+    } else {
+      if (header) header.set_style(null);
+      if (box) box.set_style(null);
     }
+  }
+
+  // Revert decorations on a banner still on screen when the extension is
+  // disabled. The banner is short-lived (MessageTray destroys it in
+  // _hideNotificationCompleted) and new banners are no longer decorated once the
+  // override is removed, so this only restores the single banner that may be
+  // visible at disable() time. Resets to the stock look directly, since the
+  // settings are about to be released.
+  _undecorateBanner(banner) {
+    if (!banner || !banner._header || !banner._bodyLabel) return;
+    if (banner.titleLabel) banner.titleLabel.visible = true;
+    if (banner._header.timeLabel) banner._header.timeLabel.visible = true;
+    const appIcon = this._findByStyleClass(banner._header, "message-source-icon");
+    if (appIcon) appIcon.visible = true;
+    if (banner._icon) banner._icon.visible = true;
+    banner.set_style(null);
+    const header = this._findByStyleClass(banner, "message-header");
+    const box = this._findByStyleClass(banner, "message-box");
+    if (header) header.set_style(null);
+    if (box) box.set_style(null);
+    // Restore the stock collapsed body (newlines as spaces), matching GNOME's
+    // own `set body`.
+    const rawBody = this._messageTray?._notification?.body ?? "";
+    banner._bodyLabel.setMarkup(
+      rawBody.replace(/\n/g, " "),
+      banner._useBodyMarkup ?? false,
+    );
   }
 
   // Depth-first search for the first descendant with the given style class.
@@ -234,6 +293,10 @@ export default class NotificationBannerExtension extends Extension {
       this._bannerBin.translation_x = this._original.translationX;
       this._bannerBin.translation_y = this._original.translationY;
     }
+
+    // Revert decorations on a banner still on screen (short-lived; new banners
+    // are no longer decorated now the override is gone).
+    this._undecorateBanner(this._messageTray?._banner ?? null);
 
     this._teardown();
   }

@@ -129,9 +129,12 @@ against new GNOME Shell versions.
   duplicate title, re-sets the body keeping newlines, toggles timestamp/icons,
   expands, and applies inline styles for width / radius / font scale / compact
   padding.
+- The settings `changed` handler reapplies the position and re-runs the
+  (idempotent) banner decoration, so changes show on a banner already on screen.
 - `disable()` restores the `_showNotification` override, the `bannerAlignment`
-  accessor, the container alignment and translation, and disconnects the settings
-  handler. Decorations live on per-notification banners that are destroyed when
+  accessor, the container alignment and translation, disconnects the settings
+  handler, and reverts the decoration on a banner still visible at that moment.
+  Decorations otherwise live on per-notification banners that are destroyed when
   the notification goes away, so nothing persists.
 
 ## Limitations
@@ -142,8 +145,9 @@ against new GNOME Shell versions.
 - "Keep newlines in body" shows the full multi-line text when the banner is
   expanded; collapsed banners still clamp the body height (pair it with "Expand
   immediately" to always see the full body).
-- Content/appearance settings apply to the next notification, not to a banner
-  already on screen.
+- Content/appearance settings reapply immediately to a banner already on screen.
+  "Expand immediately" is the exception: turning it off does not re-collapse a
+  banner GNOME has already expanded.
 - Position is applied to the primary monitor work area, as GNOME constrains the
   message tray to the primary monitor.
 
