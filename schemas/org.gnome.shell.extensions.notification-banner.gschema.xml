@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="org.gnome.shell.extensions.notification-banner.horizontal-position">
+    <value nick="left" value="0"/>
+    <value nick="center" value="1"/>
+    <value nick="right" value="2"/>
+  </enum>
+
+  <enum id="org.gnome.shell.extensions.notification-banner.vertical-position">
+    <value nick="top" value="0"/>
+    <value nick="center" value="1"/>
+    <value nick="bottom" value="2"/>
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.notification-banner"
+          path="/org/gnome/shell/extensions/notification-banner/">
+
+    <!-- Position. Defaults match GNOME's stock placement (top-center, no extra
+         padding), so the extension changes nothing until configured. -->
+    <key name="horizontal-position"
+         enum="org.gnome.shell.extensions.notification-banner.horizontal-position">
+      <default>'center'</default>
+      <summary>Horizontal position of the notification banner</summary>
+      <description>
+        Horizontal anchor within the primary monitor work area: left, center, or
+        right. GNOME's panel code resets the banner's horizontal alignment on
+        certain events; this extension re-enforces the configured value.
+      </description>
+    </key>
+
+    <key name="vertical-position"
+         enum="org.gnome.shell.extensions.notification-banner.vertical-position">
+      <default>'top'</default>
+      <summary>Vertical position of the notification banner</summary>
+      <description>
+        Vertical anchor within the primary monitor work area: top, center, or
+        bottom.
+      </description>
+    </key>
+
+    <key name="padding-horizontal" type="i">
+      <default>0</default>
+      <range min="0" max="400"/>
+      <summary>Horizontal padding (px)</summary>
+      <description>
+        Gap in pixels between the banner and the left or right screen edge.
+        Ignored when the horizontal position is center.
+      </description>
+    </key>
+
+    <key name="padding-vertical" type="i">
+      <default>0</default>
+      <range min="0" max="400"/>
+      <summary>Vertical padding (px)</summary>
+      <description>
+        Gap in pixels between the banner and the top or bottom screen edge.
+        Ignored when the vertical position is center.
+      </description>
+    </key>
+
+    <!-- Content. All off / stock by default. Requires the GNOME 46+ banner
+         structure; silently inactive on GNOME 45. -->
+    <key name="dedupe-title" type="b">
+      <default>false</default>
+      <summary>Hide a redundant notification title</summary>
+      <description>
+        When the notification title equals the application name shown in the
+        banner header, hide the duplicated title line.
+      </description>
+    </key>
+
+    <key name="body-multiline" type="b">
+      <default>false</default>
+      <summary>Keep newlines in the notification body</summary>
+      <description>
+        GNOME collapses newlines in the body to spaces. When enabled, the body
+        keeps its line breaks (shown fully when the banner is expanded).
+      </description>
+    </key>
+
+    <key name="show-timestamp" type="b">
+      <default>true</default>
+      <summary>Show the timestamp in the banner header</summary>
+      <description>
+        Whether to show the relative time label (for example "Just now") in the
+        banner header.
+      </description>
+    </key>
+
+    <key name="force-expand" type="b">
+      <default>false</default>
+      <summary>Expand the banner immediately</summary>
+      <description>
+        Show the banner in its expanded form right away (full body text and any
+        action buttons), instead of waiting for hover or a critical urgency.
+      </description>
+    </key>
+
+    <!-- Appearance. All stock by default. Requires the GNOME 46+ structure. -->
+    <key name="show-app-icon" type="b">
+      <default>true</default>
+      <summary>Show the application icon in the header</summary>
+      <description>Whether to show the small application icon in the banner header.</description>
+    </key>
+
+    <key name="show-notification-icon" type="b">
+      <default>true</default>
+      <summary>Show the large notification icon</summary>
+      <description>
+        Whether to show the large notification icon next to the content (shown
+        only when the notification provides one).
+      </description>
+    </key>
+
+    <key name="banner-width" type="i">
+      <default>0</default>
+      <range min="0" max="2000"/>
+      <summary>Banner width override (px)</summary>
+      <description>Width of the banner in pixels. 0 keeps the GNOME default (34em).</description>
+    </key>
+
+    <key name="corner-radius" type="i">
+      <default>-1</default>
+      <range min="-1" max="200"/>
+      <summary>Banner corner radius override (px)</summary>
+      <description>Corner radius of the banner in pixels. -1 keeps the GNOME default.</description>
+    </key>
+
+    <key name="font-scale" type="i">
+      <default>100</default>
+      <range min="50" max="200"/>
+      <summary>Banner font scale (%)</summary>
+      <description>Scales the banner text size. 100 keeps the GNOME default.</description>
+    </key>
+
+    <key name="compact" type="b">
+      <default>false</default>
+      <summary>Compact banner spacing</summary>
+      <description>Reduce the banner's internal paddings for a denser layout.</description>
+    </key>
+  </schema>
+</schemalist>
