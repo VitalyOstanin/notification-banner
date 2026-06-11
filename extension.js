@@ -99,15 +99,21 @@ export default class NotificationBannerExtension extends Extension {
         },
     );
 
-    this._settingsChangedId = this._settings.connect("changed", () => {
-      this._applyPosition();
-      // Re-decorate the banner currently on screen so content/appearance
-      // changes apply immediately, matching the instant feedback of position
-      // changes. _decorateBanner is idempotent: it sets each property from the
-      // current settings, so toggling a setting off reverts it on the live
-      // banner too.
-      this._decorateBanner(this._messageTray);
-    });
+    // Tracked with connectObject owned by `this`; disable() drops it with a
+    // single disconnectObject(this), no signal-id bookkeeping needed.
+    this._settings.connectObject(
+      "changed",
+      () => {
+        this._applyPosition();
+        // Re-decorate the banner currently on screen so content/appearance
+        // changes apply immediately, matching the instant feedback of position
+        // changes. _decorateBanner is idempotent: it sets each property from the
+        // current settings, so toggling a setting off reverts it on the live
+        // banner too.
+        this._decorateBanner(this._messageTray);
+      },
+      this,
+    );
 
     this._applyPosition();
   }
@@ -259,10 +265,7 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   disable() {
-    if (this._settingsChangedId) {
-      this._settings.disconnect(this._settingsChangedId);
-      this._settingsChangedId = 0;
-    }
+    this._settings?.disconnectObject(this);
 
     // Restore the _showNotification override.
     if (this._injectionManager) {
