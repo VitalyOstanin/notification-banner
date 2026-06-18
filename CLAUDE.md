@@ -56,6 +56,10 @@ Two compatibility tiers:
 | banner `titleLabel` / `_bodyLabel` / `_header.timeLabel` / `_icon` | gnome-shell | 46-50 | content widgets (`js/ui/messageList.js`) |
 | `_bodyLabel.setMarkup(text, allowMarkup)`         | gnome-shell  | 46-50     | re-set body keeping newlines                     |
 | style classes `message-source-icon` / `message-header` / `message-box` | gnome-shell | 46-50 | found via `has_style_class_name` |
+| `MessageTray.Source` / `Notification` / `Urgency` / `getSystemSource` | gnome-shell | 45-50 | preview sample; 45 positional + setUrgency/setTransient, 46+ params |
+| `MessageTray.prototype._hideNotificationCompleted`| gnome-shell  | 45-50     | overridden to re-ensure the preview sample       |
+| `Gio.DBusExportedObject.wrapJSObject` / `Gio.DBus.session` | gio  | 45-50     | BeginPreview/EndPreview between prefs and shell   |
+| `org.gnome.desktop.notifications` `show-banners`  | gsettings    | 45-50     | DND detection (no preview sample under DND)       |
 
 ## Positioning model
 

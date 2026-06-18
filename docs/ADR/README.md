@@ -18,3 +18,4 @@ This directory records the technical decisions made for the
 | [0008](0008-decorate-via-show-notification.md)           | Decorate banners via a `_showNotification` override    | Accepted |
 | [0009](0009-stock-by-default.md)                         | All settings default to the stock look                 | Accepted |
 | [0010](0010-content-requires-gnome-46.md)                | Content/appearance requires GNOME 46+                  | Accepted |
+| [0011](0011-position-preview-via-dbus-and-critical-sample.md) | Live position preview via DBus and a CRITICAL sample | Accepted |

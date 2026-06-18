@@ -131,6 +131,19 @@ export default class NotificationBannerExtension extends Extension {
         },
     );
 
+    // Re-establish the invariant after any banner disappears. The original
+    // _hideNotificationCompleted destroys this._banner and sets it to null
+    // (verified gnome-45..50); after it runs we may need a fresh sample.
+    this._injectionManager.overrideMethod(
+      proto,
+      "_hideNotificationCompleted",
+      (original) =>
+        function (...args) {
+          original.apply(this, args);
+          self._onBannerHidden();
+        },
+    );
+
     // Tracked with connectObject owned by `this`; disable() drops it with a
     // single disconnectObject(this), no signal-id bookkeeping needed.
     this._settings.connectObject(
@@ -170,14 +183,121 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   // DBus: the preferences window opened. Begin maintaining the "a banner is
-  // visible" invariant. Full logic is added in a later task.
+  // visible" invariant: keep a sample on screen whenever no real banner is.
   BeginPreview() {
     this._previewActive = true;
+    this._ensureSample();
   }
 
   // DBus: the preferences window closed. Stop maintaining the invariant.
   EndPreview() {
     this._previewActive = false;
+    this._destroySample();
+  }
+
+  // Create the transient CRITICAL sample banner. CRITICAL keeps it on screen
+  // (no auto-hide); isTransient keeps it out of the notification history. The
+  // sample flows through the overridden _showNotification, so position and
+  // (on 46+) decoration apply automatically.
+  _createSample() {
+    // Never create a second sample: keep one live source at most, so we do not
+    // leak a Source if called again while one is already on screen.
+    if (this._sampleSource) return;
+    const tray = Main.messageTray;
+    if (!tray) return;
+    const modern = typeof MessageTray.getSystemSource === "function";
+    let source;
+    let notification;
+    try {
+      if (modern) {
+        source = new MessageTray.Source({
+          title: SAMPLE_TITLE,
+          iconName: SAMPLE_ICON,
+        });
+        tray.add(source);
+        notification = new MessageTray.Notification({
+          source,
+          title: SAMPLE_TITLE,
+          body: SAMPLE_BODY,
+          isTransient: true,
+          urgency: MessageTray.Urgency.CRITICAL,
+        });
+        source.addNotification(notification);
+      } else {
+        // GNOME 45: positional constructors and setter methods.
+        source = new MessageTray.Source(SAMPLE_TITLE, SAMPLE_ICON);
+        tray.add(source);
+        notification = new MessageTray.Notification(
+          source,
+          SAMPLE_TITLE,
+          SAMPLE_BODY,
+          {},
+        );
+        notification.setTransient(true);
+        notification.setUrgency(MessageTray.Urgency.CRITICAL);
+        source.showNotification(notification);
+      }
+    } catch (err) {
+      logError(
+        err,
+        "[notification-banner] failed to create position-preview sample",
+      );
+      return;
+    }
+    this._sampleSource = source;
+    // Drop our reference when the source goes away (EndPreview, or the user
+    // dismissed the sample), so we never touch a destroyed object. Tracked with
+    // connectObject owned by `this`.
+    source.connectObject(
+      "destroy",
+      () => {
+        this._sampleSource = null;
+      },
+      this,
+    );
+  }
+
+  // Destroy our sample if one is alive (its source removal hides the banner).
+  _destroySample() {
+    if (this._sampleSource) {
+      const source = this._sampleSource;
+      this._sampleSource = null;
+      source.destroy();
+    }
+  }
+
+  // Maintain the invariant: while preview is active and not under DND, ensure a
+  // banner is on screen. If one already is (real or our sample), do nothing —
+  // the existing `changed` handler repositions it live.
+  _ensureSample() {
+    if (!this._previewActive) return;
+    if (this._dndActive()) return;
+    const tray = Main.messageTray;
+    if (!tray || tray._banner != null) return;
+    this._createSample();
+  }
+
+  // A banner just disappeared. If preview is active, ensure a new sample on the
+  // next idle tick — deferred so we do not re-enter the tray state machine from
+  // inside its own _hideNotificationCompleted.
+  _onBannerHidden() {
+    if (!this._previewActive) return;
+    if (this._dndActive()) return; // under DND no banner is kept on screen
+    if (this._ensureSampleId) return; // already queued
+    this._ensureSampleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+      this._ensureSampleId = 0;
+      this._ensureSample();
+      return GLib.SOURCE_REMOVE;
+    });
+  }
+
+  // Do Not Disturb: GNOME's DND toggle sets org.gnome.desktop.notifications
+  // show-banners to false. Under DND no banners are shown at all, so the preview
+  // invariant does not apply.
+  _dndActive() {
+    return this._notificationSettings
+      ? !this._notificationSettings.get_boolean("show-banners")
+      : false;
   }
 
   // Apply content and appearance settings to the current banner. Idempotent:
@@ -345,6 +465,11 @@ export default class NotificationBannerExtension extends Extension {
     this._undecorateBanner(this._messageTray?._banner ?? null);
 
     this._previewActive = false;
+    if (this._ensureSampleId) {
+      GLib.source_remove(this._ensureSampleId);
+      this._ensureSampleId = 0;
+    }
+    this._destroySample();
     if (this._dbus) {
       this._dbus.unexport();
       this._dbus = null;

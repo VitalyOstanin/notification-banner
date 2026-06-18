@@ -21,6 +21,43 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     this._addAppearanceGroup(page, settings);
 
     window.add(page);
+
+    // Keep a banner visible on screen while this window is open, so the user
+    // sees the live position. Arm the EndPreview cleanup before starting the
+    // preview; close-request returns false to allow the close.
+    window.connect("close-request", () => {
+      this._callPreview("EndPreview");
+      return false;
+    });
+    this._callPreview("BeginPreview");
+  }
+
+  // Best-effort call into the extension (in the gnome-shell process). The
+  // preview is optional: if the extension is disabled or not exporting, the
+  // call fails silently and the window is unaffected.
+  _callPreview(method) {
+    try {
+      Gio.DBus.session.call(
+        "org.gnome.Shell",
+        "/org/gnome/Shell/Extensions/NotificationBanner",
+        "org.gnome.Shell.Extensions.NotificationBanner",
+        method,
+        null,
+        null,
+        Gio.DBusCallFlags.NONE,
+        -1,
+        null,
+        (conn, res) => {
+          try {
+            conn.call_finish(res);
+          } catch (_e) {
+            // extension disabled or not exporting; preview is best-effort
+          }
+        },
+      );
+    } catch (_e) {
+      // session bus unavailable; preview is best-effort
+    }
   }
 
   _addPositionGroup(page, settings) {
