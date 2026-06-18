@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Clutter from "gi://Clutter";
+import Gio from "gi://Gio";
+import GLib from "gi://GLib";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
+import * as MessageTray from "resource:///org/gnome/shell/ui/messageTray.js";
 import {
   Extension,
   InjectionManager,
@@ -22,6 +25,23 @@ const V_ALIGN = {
   center: Clutter.ActorAlign.CENTER,
   bottom: Clutter.ActorAlign.END,
 };
+
+// DBus surface so the preferences window (a separate process) can tell the
+// extension when it is open. The extension runs inside gnome-shell, which owns
+// the well-known name org.gnome.Shell, so the object is reachable there.
+const PREVIEW_IFACE = `
+<node>
+  <interface name="org.gnome.Shell.Extensions.NotificationBanner">
+    <method name="BeginPreview"/>
+    <method name="EndPreview"/>
+  </interface>
+</node>`;
+const PREVIEW_OBJECT_PATH = "/org/gnome/Shell/Extensions/NotificationBanner";
+
+// Fixed content of the position-preview sample banner.
+const SAMPLE_TITLE = "Notification banner";
+const SAMPLE_BODY = "Position preview";
+const SAMPLE_ICON = "dialog-information-symbolic";
 
 // Stock value of the font-scale setting (mirrors the schema <default>): at this
 // value no font-size override is applied, the same way 0 / -1 are the no-op
@@ -50,6 +70,18 @@ export default class NotificationBannerExtension extends Extension {
       this._teardown();
       return;
     }
+
+    // Preview state and the DBus surface for the prefs process. Exported only
+    // after the banner container is located, so the early-return path above
+    // never leaves an object on the bus (export/unexport stay symmetric).
+    this._previewActive = false;
+    this._sampleSource = null;
+    this._ensureSampleId = 0;
+    this._notificationSettings = new Gio.Settings({
+      schema_id: "org.gnome.desktop.notifications",
+    });
+    this._dbus = Gio.DBusExportedObject.wrapJSObject(PREVIEW_IFACE, this);
+    this._dbus.export(Gio.DBus.session, PREVIEW_OBJECT_PATH);
 
     // Remember the stock container state so disable() restores it exactly.
     this._original = {
@@ -135,6 +167,17 @@ export default class NotificationBannerExtension extends Extension {
     // offset points inward from the anchored edge; centered axes get no offset.
     bin.translation_x = h === "left" ? padH : h === "right" ? -padH : 0;
     bin.translation_y = v === "top" ? padV : v === "bottom" ? -padV : 0;
+  }
+
+  // DBus: the preferences window opened. Begin maintaining the "a banner is
+  // visible" invariant. Full logic is added in a later task.
+  BeginPreview() {
+    this._previewActive = true;
+  }
+
+  // DBus: the preferences window closed. Stop maintaining the invariant.
+  EndPreview() {
+    this._previewActive = false;
   }
 
   // Apply content and appearance settings to the current banner. Idempotent:
@@ -301,6 +344,12 @@ export default class NotificationBannerExtension extends Extension {
     // are no longer decorated now the override is gone).
     this._undecorateBanner(this._messageTray?._banner ?? null);
 
+    this._previewActive = false;
+    if (this._dbus) {
+      this._dbus.unexport();
+      this._dbus = null;
+    }
+    this._notificationSettings = null;
     this._teardown();
   }
 
