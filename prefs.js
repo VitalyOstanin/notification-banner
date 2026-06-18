@@ -22,9 +22,8 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
 
     window.add(page);
 
-    // Keep a banner visible on screen while this window is open, so the user
-    // sees the live position. Arm the EndPreview cleanup before starting the
-    // preview; close-request returns false to allow the close.
+    // Keep a sample banner on screen while this window is open (live position).
+    // Arm EndPreview before BeginPreview; close-request returns false to allow close.
     window.connect("close-request", () => {
       this._callPreview("EndPreview");
       return false;
@@ -32,9 +31,8 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     this._callPreview("BeginPreview");
   }
 
-  // Best-effort call into the extension (in the gnome-shell process). The
-  // preview is optional: if the extension is disabled or not exporting, the
-  // call fails silently and the window is unaffected.
+  // Best-effort call into the extension; fails silently if it is disabled or
+  // not exporting (preview is optional).
   _callPreview(method) {
     try {
       Gio.DBus.session.call(
