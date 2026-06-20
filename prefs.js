@@ -11,6 +11,15 @@ const H_LABELS = ["Left", "Center", "Right"];
 const V_NICKS = ["top", "center", "bottom"];
 const V_LABELS = ["Top", "Center", "Bottom"];
 
+// Spin ranges; lower/upper must stay in sync with <range> in the gschema.
+const RANGES = {
+  "padding-horizontal": { lower: 0, upper: 400 },
+  "padding-vertical": { lower: 0, upper: 400 },
+  "banner-width": { lower: 0, upper: 2000, step: 10 },
+  "corner-radius": { lower: -1, upper: 200 },
+  "font-scale": { lower: 50, upper: 200, step: 5 },
+};
+
 export default class NotificationBannerPrefs extends ExtensionPreferences {
   fillPreferencesWindow(window) {
     const settings = this.getSettings();
@@ -75,15 +84,11 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     );
     group.add(
       this._spinRow(settings, "padding-horizontal", "Horizontal padding (px)", {
-        lower: 0,
-        upper: 400,
         subtitle: "Ignored when horizontal position is center",
       }),
     );
     group.add(
       this._spinRow(settings, "padding-vertical", "Vertical padding (px)", {
-        lower: 0,
-        upper: 400,
         subtitle: "Ignored when vertical position is center",
       }),
     );
@@ -134,24 +139,16 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     );
     group.add(
       this._spinRow(settings, "banner-width", "Banner width (px)", {
-        lower: 0,
-        upper: 2000,
-        step: 10,
         subtitle: "0 keeps the GNOME default (34em)",
       }),
     );
     group.add(
       this._spinRow(settings, "corner-radius", "Corner radius (px)", {
-        lower: -1,
-        upper: 200,
         subtitle: "-1 keeps the GNOME default",
       }),
     );
     group.add(
       this._spinRow(settings, "font-scale", "Font scale (%)", {
-        lower: 50,
-        upper: 200,
-        step: 5,
         subtitle: "100 keeps the GNOME default",
       }),
     );
@@ -182,7 +179,8 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     return row;
   }
 
-  _spinRow(settings, key, title, { lower, upper, step = 1, subtitle } = {}) {
+  _spinRow(settings, key, title, { subtitle } = {}) {
+    const { lower, upper, step = 1 } = RANGES[key];
     const row = new Adw.SpinRow({
       title,
       ...(subtitle ? { subtitle } : {}),

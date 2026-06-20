@@ -16,7 +16,8 @@
           path="/org/gnome/shell/extensions/notification-banner/">
 
     <!-- Position. Defaults match GNOME's stock placement (top-center, no extra
-         padding), so the extension changes nothing until configured. -->
+         padding), so the extension changes nothing until configured.
+         <range> values below mirror the RANGES table in prefs.js; keep in sync. -->
     <key name="horizontal-position"
          enum="org.gnome.shell.extensions.notification-banner.horizontal-position">
       <default>'center'</default>
