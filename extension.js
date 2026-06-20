@@ -47,16 +47,8 @@ export default class NotificationBannerExtension extends Extension {
     this._injectionManager = new InjectionManager();
 
     const messageTray = Main.messageTray;
-    this._messageTray = messageTray ?? null;
-    this._bannerBin = messageTray?._bannerBin ?? null;
-    if (!this._bannerBin) {
-      logError(
-        new Error("Main.messageTray._bannerBin not found"),
-        "[notification-banner] cannot locate the banner container",
-      );
-      this._teardown();
-      return;
-    }
+    this._messageTray = messageTray;
+    this._bannerBin = messageTray._bannerBin;
 
     this._setupPreview();
 
@@ -67,7 +59,7 @@ export default class NotificationBannerExtension extends Extension {
       translationY: this._bannerBin.translation_y,
     };
 
-    const proto = messageTray.constructor.prototype;
+    const proto = MessageTray.MessageTray.prototype;
     this._installBannerAlignmentOverride(proto);
     this._installMethodOverrides(proto);
     this._installDateMenuSuppression();
