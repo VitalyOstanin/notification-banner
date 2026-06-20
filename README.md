@@ -63,6 +63,17 @@ revert the configured horizontal position. The extension redefines the
 writes are ignored and the configured horizontal position is kept. The vertical
 position is never touched by GNOME and needs no such guard.
 
+## When banners are suppressed
+
+`panel.js` also reads `bannerAlignment` to hide the transient banner while a
+panel menu on the banner's side is open. Since the banner can be moved away from
+the clock, that side-based rule would hide banners for unrelated menus (any menu
+in the same panel box). The getter therefore returns `Clutter.ActorAlign.FILL`
+(matching no panel box) to disable it, and the extension instead suppresses
+banners only while the notification list (`dateMenu`) is open — the menu that
+actually shows the same notifications. See
+[docs/ADR/0012](docs/ADR/0012-suppress-banners-only-for-the-notification-list.md).
+
 ## Compatibility
 
 GNOME Shell 45-50.

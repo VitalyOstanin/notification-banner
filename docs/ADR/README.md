@@ -19,3 +19,4 @@ This directory records the technical decisions made for the
 | [0009](0009-stock-by-default.md)                         | All settings default to the stock look                 | Accepted |
 | [0010](0010-content-requires-gnome-46.md)                | Content/appearance requires GNOME 46+                  | Accepted |
 | [0011](0011-position-preview-via-dbus-and-critical-sample.md) | Live position preview via DBus and a CRITICAL sample | Accepted |
+| [0012](0012-suppress-banners-only-for-the-notification-list.md) | Suppress banners only for the notification list      | Accepted |

@@ -49,7 +49,9 @@ Two compatibility tiers:
 | `Extension`, `InjectionManager`, `getSettings()`  | gnome-shell  | 45-50     | `js/extensions/extension.js`, since 45           |
 | `Main.messageTray`                                | gnome-shell  | 45-50     | singleton, `js/ui/main.js`                       |
 | `MessageTray._bannerBin`                          | gnome-shell  | 45-50     | private banner container                         |
-| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 45-50     | get/set x_align; redefined to guard the value    |
+| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 45-50     | setter guards x_align (position); getter returns FILL to disable side-based banner suppression (ADR 0012) |
+| `Main.panel.statusArea.dateMenu.menu`             | gnome-shell  | 45-50     | `open-state-changed` drives banner suppression (ADR 0012) |
+| `MessageTray.prototype` `bannerBlocked` accessor  | gnome-shell  | 45-50     | written (not redefined) to suppress while the list is open |
 | `MessageTray.prototype._showNotification`         | gnome-shell  | 45-50     | overridden to decorate `this._banner`            |
 | `MessageTray._banner` / `_notification` / `_expandBanner` | gnome-shell | 45-50 | banner instance, source notification, expand call |
 | `St.Widget` `x_align`/`y_align`, `translation_x/y` | mutter      | 45-50     | `Clutter.ActorAlign`, paint-time offset          |

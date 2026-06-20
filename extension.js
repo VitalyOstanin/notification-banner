@@ -70,6 +70,7 @@ export default class NotificationBannerExtension extends Extension {
     const proto = messageTray.constructor.prototype;
     this._installBannerAlignmentOverride(proto);
     this._installMethodOverrides(proto);
+    this._installDateMenuSuppression();
 
     this._settings.connectObject(
       "changed",
@@ -106,7 +107,14 @@ export default class NotificationBannerExtension extends Extension {
     Object.defineProperty(proto, "bannerAlignment", {
       configurable: true,
       get() {
-        return this._bannerBin.get_x_align();
+        // Read only by panel.js, to compare against each indicator's box
+        // alignment and suppress banners while a same-aligned menu is open.
+        // Returning FILL (matches no panel box: START/CENTER/END) disables that
+        // blanket per-side suppression, which would otherwise hide banners for
+        // any menu on the banner's side (e.g. an unrelated right-panel menu).
+        // Suppression for the notification list is wired explicitly to the
+        // dateMenu instead (see _installDateMenuSuppression and ADR 0012).
+        return Clutter.ActorAlign.FILL;
       },
       set(_align) {
         this._bannerBin.set_x_align(
@@ -115,6 +123,27 @@ export default class NotificationBannerExtension extends Extension {
         );
       },
     });
+  }
+
+  // With the bannerAlignment getter neutralized, panel.js no longer suppresses
+  // banners for any same-side menu. Reinstate suppression for just the
+  // notification list: while the clock menu (dateMenu, which shows the same
+  // notifications) is open, block banners so the transient banner does not
+  // duplicate the open list. Keyed to the menu, not panel geometry, so it holds
+  // even when another extension (e.g. dash-to-panel) moves the clock out of the
+  // standard panel boxes. The write goes through the bannerBlocked accessor,
+  // cooperating with any mute guard layered on it.
+  _installDateMenuSuppression() {
+    this._dateMenu = Main.panel?.statusArea?.dateMenu ?? null;
+    if (!this._dateMenu?.menu) return;
+    this._dateMenu.menu.connectObject(
+      "open-state-changed",
+      (_menu, isOpen) => {
+        const tray = Main.messageTray;
+        if (tray) tray.bannerBlocked = isOpen;
+      },
+      this,
+    );
   }
 
   _installMethodOverrides(proto) {
@@ -374,6 +403,15 @@ export default class NotificationBannerExtension extends Extension {
       this._injectionManager.clear();
       this._injectionManager = null;
     }
+
+    if (this._dateMenu?.menu) {
+      this._dateMenu.menu.disconnectObject(this);
+      // If disabled while the list is open we may have left a block set; lift it
+      // (the accessor still respects an active mute guard layered on it).
+      if (this._dateMenu.menu.isOpen && Main.messageTray)
+        Main.messageTray.bannerBlocked = false;
+    }
+    this._dateMenu = null;
 
     if (this._bannerAlignmentProto) {
       if (this._originalBannerAlignmentDesc) {
