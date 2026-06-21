@@ -31,9 +31,16 @@ const POSITION_KEYS = new Set([
   "padding-vertical",
 ]);
 
-// Internal key the prefs window bumps on open to request a preview (see schema).
-// Not a real setting, so it only previews — no reposition, no redecoration.
+// Internal keys the prefs window drives (see schema): preview-active is true
+// while the window is open; preview-tick is its heartbeat. Neither is a real
+// setting, so they only manage the preview.
+const PREVIEW_ACTIVE_KEY = "preview-active";
 const PREVIEW_TICK_KEY = "preview-tick";
+
+// Clear the persistent preview if no heartbeat arrives within this window (the
+// prefs window closed without notice or its process died). Longer than the
+// prefs heartbeat interval so an occasional late pulse does not drop it.
+const PREVIEW_STALE_MS = 12000;
 
 const SAMPLE_TITLE = "Notification banner";
 const SAMPLE_BODY = "Position preview";
@@ -69,16 +76,24 @@ export default class NotificationBannerExtension extends Extension {
 
     // A prefs write (separate process) emits this `changed` on the shell-side
     // settings, so the open prefs window is observable here without any extra
-    // IPC: reposition (placement keys) or redecorate (the rest) and show a
-    // sample at the new placement so the edit is previewed. The prefs window
-    // also bumps preview-tick on open, which only requests a preview.
+    // IPC. preview-active toggles the persistent preview; preview-tick is its
+    // heartbeat; any real key repositions or redecorates and re-previews.
     this._settings.connectObject(
       "changed",
       (_settings, key) => {
-        if (key !== PREVIEW_TICK_KEY) {
-          if (POSITION_KEYS.has(key)) this._applyPosition();
-          else this._decorateBanner(this._messageTray);
+        if (key === PREVIEW_ACTIVE_KEY) {
+          this._setPreviewActive(this._settings.get_boolean(key));
+          return;
         }
+        if (key === PREVIEW_TICK_KEY) {
+          if (this._settings.get_boolean(PREVIEW_ACTIVE_KEY)) {
+            if (!this._sampleSource) this._showPreview();
+            this._refreshPreviewStale();
+          }
+          return;
+        }
+        if (POSITION_KEYS.has(key)) this._applyPosition();
+        else this._decorateBanner(this._messageTray);
         this._queuePreview();
       },
       this,
@@ -90,6 +105,7 @@ export default class NotificationBannerExtension extends Extension {
   _setupPreview() {
     this._sampleSource = null;
     this._previewId = 0;
+    this._staleId = 0;
     this._notificationSettings = new Gio.Settings({
       schema_id: "org.gnome.desktop.notifications",
     });
@@ -160,7 +176,6 @@ export default class NotificationBannerExtension extends Extension {
 
   _applyPosition() {
     const bin = this._bannerBin;
-    if (!bin) return;
 
     const h = this._settings.get_string("horizontal-position");
     const v = this._settings.get_string("vertical-position");
@@ -189,10 +204,43 @@ export default class NotificationBannerExtension extends Extension {
     );
   }
 
+  // While the prefs window is open the sample is CRITICAL, so it stays on screen
+  // (GNOME only auto-hides non-CRITICAL banners) instead of flashing once.
+  _setPreviewActive(active) {
+    if (active) {
+      this._showPreview();
+      this._refreshPreviewStale();
+    } else {
+      this._cancelPreviewStale();
+      this._destroySample();
+    }
+  }
+
+  // The open window pulses preview-tick; if pulses stop (window closed without
+  // notice, or its process died) clear the persistent sample so it never lingers.
+  _refreshPreviewStale() {
+    this._cancelPreviewStale();
+    this._staleId = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      PREVIEW_STALE_MS,
+      () => {
+        this._staleId = 0;
+        this._destroySample();
+        return GLib.SOURCE_REMOVE;
+      },
+    );
+  }
+
+  _cancelPreviewStale() {
+    if (this._staleId) {
+      GLib.source_remove(this._staleId);
+      this._staleId = 0;
+    }
+  }
+
   _showPreview() {
     if (this._dndActive()) return;
     const tray = Main.messageTray;
-    if (!tray) return;
     this._destroySample(); // replace any still-visible previous sample
     const source = this._buildSampleSource(tray);
     this._sampleSource = source;
@@ -205,20 +253,23 @@ export default class NotificationBannerExtension extends Extension {
     );
   }
 
-  // Transient sample, default urgency so GNOME auto-hides it on the normal banner
-  // timeout; transient keeps it out of notification history.
+  // Transient sample, kept out of notification history.
   _buildSampleSource(tray) {
     const source = new MessageTray.Source({
       title: SAMPLE_TITLE,
       iconName: SAMPLE_ICON,
     });
     tray.add(source);
-    const notification = new MessageTray.Notification({
+    const params = {
       source,
       title: SAMPLE_TITLE,
       body: SAMPLE_BODY,
       isTransient: true,
-    });
+    };
+    // Persistent (window open) sample stays put; otherwise it auto-hides.
+    if (this._settings.get_boolean(PREVIEW_ACTIVE_KEY))
+      params.urgency = MessageTray.Urgency.CRITICAL;
+    const notification = new MessageTray.Notification(params);
     source.addNotification(notification);
     return source;
   }
@@ -232,15 +283,13 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   _dndActive() {
-    return this._notificationSettings
-      ? !this._notificationSettings.get_boolean("show-banners")
-      : false;
+    return !this._notificationSettings.get_boolean("show-banners");
   }
 
   _decorateBanner(tray) {
-    const banner = tray?._banner ?? null;
+    const banner = tray._banner;
     const settings = this._settings;
-    if (!banner || !settings) return;
+    if (!banner) return;
 
     const notification = tray._notification ?? null;
     // Reset to stock, then apply only enabled options, so toggles turned off
@@ -256,14 +305,14 @@ export default class NotificationBannerExtension extends Extension {
     if (settings.get_boolean("body-multiline"))
       banner._bodyLabel.setMarkup(
         notification?.body ?? "",
-        banner._useBodyMarkup ?? false,
+        banner._useBodyMarkup,
       );
 
     if (!settings.get_boolean("show-timestamp"))
       banner._header.timeLabel.visible = false;
 
     // Monotonic: only ever expands; GNOME collapses on its own timing.
-    if (settings.get_boolean("force-expand")) tray._expandBanner?.(true);
+    if (settings.get_boolean("force-expand")) tray._expandBanner(true);
 
     // App icon has no named field; find it by style class.
     if (!settings.get_boolean("show-app-icon")) {
@@ -300,14 +349,14 @@ export default class NotificationBannerExtension extends Extension {
     banner.set_style(null);
     banner._bodyLabel.setMarkup(
       (notification?.body ?? "").replace(/\n/g, " "),
-      banner._useBodyMarkup ?? false,
+      banner._useBodyMarkup,
     );
   }
 
   // Called only for the current banner, so body comes from the active notification.
   _undecorateBanner(banner) {
     if (!banner) return;
-    this._resetBannerDecorations(banner, this._messageTray?._notification ?? null);
+    this._resetBannerDecorations(banner, this._messageTray._notification);
   }
 
   // Memoize the style-class lookup on the actor. Banners are per-notification
@@ -324,7 +373,7 @@ export default class NotificationBannerExtension extends Extension {
 
   _findByStyleClass(actor, styleClass) {
     if (!actor) return null;
-    const children = actor.get_children?.() ?? [];
+    const children = actor.get_children();
     for (const child of children) {
       if (child.has_style_class_name?.(styleClass)) return child;
       const found = this._findByStyleClass(child, styleClass);
@@ -340,7 +389,7 @@ export default class NotificationBannerExtension extends Extension {
       this._dateMenu.menu.disconnectObject(this);
       // If disabled while the list is open we may have left a block set; lift it
       // (the accessor still respects an active mute guard layered on it).
-      if (this._dateMenu.menu.isOpen && Main.messageTray)
+      if (this._dateMenu.menu.isOpen)
         Main.messageTray.bannerBlocked = false;
     }
     this._dateMenu = null;
@@ -366,12 +415,13 @@ export default class NotificationBannerExtension extends Extension {
       this._bannerBin.translation_y = this._original.translationY;
     }
 
-    this._undecorateBanner(this._messageTray?._banner ?? null);
+    this._undecorateBanner(this._messageTray._banner);
 
     if (this._previewId) {
       GLib.source_remove(this._previewId);
       this._previewId = 0;
     }
+    this._cancelPreviewStale();
     this._destroySample();
     this._notificationSettings = null;
     this._teardown();

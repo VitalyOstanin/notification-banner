@@ -26,8 +26,9 @@ First release. Not yet published to extensions.gnome.org.
   body, show the banner expanded immediately, and toggle the header timestamp.
 - Appearance: toggle the application icon and the large notification icon, and
   override banner width, corner radius and font scale.
-- Live position preview: opening the preferences window, or editing a setting
-  while it is open, shows a sample banner at the current placement.
+- Live position preview: while the preferences window is open, a sample banner
+  stays at the configured placement and follows edits, so the position is visible
+  as you adjust settings.
 - All settings default to GNOME's stock look, so the extension changes nothing
   until configured.
 - Supports GNOME Shell 46-50.

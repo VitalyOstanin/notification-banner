@@ -1,6 +1,6 @@
 # 0015 - Also preview the position when the preferences window opens
 
-Status: Accepted (refines [0014](0014-position-preview-via-gsettings-change.md))
+Status: Superseded by [0016](0016-persistent-position-preview.md) (refined [0014](0014-position-preview-via-gsettings-change.md))
 
 ## Context
 

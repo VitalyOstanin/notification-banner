@@ -2,6 +2,7 @@
 
 import Adw from "gi://Adw";
 import Gio from "gi://Gio";
+import GLib from "gi://GLib";
 import Gtk from "gi://Gtk";
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 
@@ -14,10 +15,14 @@ const V_LABELS = ["Top", "Center", "Bottom"];
 // A page step (PageUp/PageDown) covers this many spin increments.
 const PAGE_STEP_FACTOR = 10;
 
-// preview-tick cycles 0..(this - 1): each window open writes a different value so
-// the shell-side `changed` fires (a no-op write emits nothing), bounded so the
-// stored number never grows. Mirrors the <range> on preview-tick in the gschema.
+// preview-tick cycles 0..(this - 1): each pulse writes a different value so the
+// shell-side `changed` fires (a no-op write emits nothing), bounded so the stored
+// number never grows. Mirrors the <range> on preview-tick in the gschema.
 const PREVIEW_TICK_MODULO = 10;
+
+// How often the open window pulses preview-tick so the shell knows it is still
+// open. Must be shorter than the shell's stale timeout.
+const PREVIEW_HEARTBEAT_MS = 5000;
 
 // Spin ranges; lower/upper must stay in sync with <range> in the gschema.
 const RANGES = {
@@ -39,14 +44,43 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
 
     window.add(page);
 
-    // Show a position preview when the window opens, not only after the first
-    // edit: bump an internal key so the shell's `changed` handler fires. The
-    // window is created fresh per open, so `map` corresponds to "on open".
+    // Keep a position preview on screen while the window is open: flag the shell
+    // and pulse a heartbeat so it can tell the window is still open. The window
+    // is created fresh per open, so `map` corresponds to "on open".
     window.connect("map", () => {
-      const next =
-        (settings.get_int("preview-tick") + 1) % PREVIEW_TICK_MODULO;
-      settings.set_int("preview-tick", next);
+      settings.set_boolean("preview-active", true);
+      this._bumpPreviewTick(settings);
+      this._startPreviewHeartbeat(settings);
     });
+    window.connect("close-request", () => {
+      this._stopPreviewHeartbeat();
+      settings.set_boolean("preview-active", false);
+      return false;
+    });
+  }
+
+  _bumpPreviewTick(settings) {
+    const next = (settings.get_int("preview-tick") + 1) % PREVIEW_TICK_MODULO;
+    settings.set_int("preview-tick", next);
+  }
+
+  _startPreviewHeartbeat(settings) {
+    this._stopPreviewHeartbeat();
+    this._heartbeatId = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      PREVIEW_HEARTBEAT_MS,
+      () => {
+        this._bumpPreviewTick(settings);
+        return GLib.SOURCE_CONTINUE;
+      },
+    );
+  }
+
+  _stopPreviewHeartbeat() {
+    if (this._heartbeatId) {
+      GLib.source_remove(this._heartbeatId);
+      this._heartbeatId = 0;
+    }
   }
 
   _addPositionGroup(page, settings) {

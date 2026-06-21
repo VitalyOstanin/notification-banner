@@ -1,6 +1,6 @@
 # 0014 - Position preview via the settings `changed` signal, not DBus
 
-Status: Accepted (supersedes [0011](0011-position-preview-via-dbus-and-critical-sample.md))
+Status: Superseded by [0016](0016-persistent-position-preview.md) (supersedes [0011](0011-position-preview-via-dbus-and-critical-sample.md))
 
 ## Context
 

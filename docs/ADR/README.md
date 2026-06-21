@@ -21,5 +21,6 @@ This directory records the technical decisions made for the
 | [0011](0011-position-preview-via-dbus-and-critical-sample.md) | Live position preview via DBus and a CRITICAL sample | Superseded by [0014](0014-position-preview-via-gsettings-change.md) |
 | [0012](0012-suppress-banners-only-for-the-notification-list.md) | Suppress banners only for the notification list      | Accepted |
 | [0013](0013-drop-gnome-45-support.md)                    | Drop GNOME 45, support GNOME 46-50                     | Accepted |
-| [0014](0014-position-preview-via-gsettings-change.md)    | Position preview via the settings `changed` signal     | Accepted |
-| [0015](0015-preview-on-prefs-window-open.md)             | Also preview the position when the prefs window opens  | Accepted |
+| [0014](0014-position-preview-via-gsettings-change.md)    | Position preview via the settings `changed` signal     | Superseded by [0016](0016-persistent-position-preview.md) |
+| [0015](0015-preview-on-prefs-window-open.md)             | Also preview the position when the prefs window opens  | Superseded by [0016](0016-persistent-position-preview.md) |
+| [0016](0016-persistent-position-preview.md)             | Persistent position preview while the prefs window is open | Accepted |
