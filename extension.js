@@ -22,19 +22,11 @@ const V_ALIGN = {
   bottom: Clutter.ActorAlign.END,
 };
 
-// DBus surface so the prefs window (a separate process) can signal open/close.
-const PREVIEW_IFACE = `
-<node>
-  <interface name="org.gnome.Shell.Extensions.NotificationBanner">
-    <method name="BeginPreview"/>
-    <method name="EndPreview"/>
-  </interface>
-</node>`;
-const PREVIEW_OBJECT_PATH = "/org/gnome/Shell/Extensions/NotificationBanner";
-
 const SAMPLE_TITLE = "Notification banner";
 const SAMPLE_BODY = "Position preview";
 const SAMPLE_ICON = "dialog-information-symbolic";
+// Coalesce a burst of setting writes (e.g. dragging a spin row) into one sample.
+const PREVIEW_DEBOUNCE_MS = 250;
 
 // Value at which no font-size override is applied (mirrors the schema default).
 const FONT_SCALE_STOCK = 100;
@@ -64,11 +56,16 @@ export default class NotificationBannerExtension extends Extension {
     this._installMethodOverrides(proto);
     this._installDateMenuSuppression();
 
+    // A prefs write (separate process) emits this `changed` on the shell-side
+    // settings, so the open prefs window is observable here without any extra
+    // IPC: reapply the position, redecorate, and show a sample at the new
+    // placement so the edit is previewed.
     this._settings.connectObject(
       "changed",
       () => {
         this._applyPosition();
         this._decorateBanner(this._messageTray);
+        this._queuePreview();
       },
       this,
     );
@@ -76,20 +73,16 @@ export default class NotificationBannerExtension extends Extension {
     this._applyPosition();
   }
 
-  // Export only after _bannerBin is located, so export/unexport stay symmetric.
   _setupPreview() {
-    this._previewActive = false;
     this._sampleSource = null;
-    this._ensureSampleId = 0;
+    this._previewId = 0;
     this._notificationSettings = new Gio.Settings({
       schema_id: "org.gnome.desktop.notifications",
     });
-    this._dbus = Gio.DBusExportedObject.wrapJSObject(PREVIEW_IFACE, this);
-    this._dbus.export(Gio.DBus.session, PREVIEW_OBJECT_PATH);
   }
 
   // panel.js _updatePanel() resets x_align on session-mode / lock / panel
-  // rebuilds; redefine the accessor (present on 45-50) to ignore external writes.
+  // rebuilds; redefine the accessor (present on 46-50) to ignore external writes.
   _installBannerAlignmentOverride(proto) {
     this._bannerAlignmentProto = proto;
     this._originalBannerAlignmentDesc =
@@ -149,16 +142,6 @@ export default class NotificationBannerExtension extends Extension {
           self._decorateBanner(this);
         },
     );
-
-    this._injectionManager.overrideMethod(
-      proto,
-      "_hideNotificationCompleted",
-      (original) =>
-        function (...args) {
-          original.apply(this, args);
-          self._onBannerHidden();
-        },
-    );
   }
 
   _applyPosition() {
@@ -179,35 +162,25 @@ export default class NotificationBannerExtension extends Extension {
     bin.translation_y = v === "top" ? padV : v === "bottom" ? -padV : 0;
   }
 
-  BeginPreview() {
-    this._previewActive = true;
-    this._ensureSample();
+  _queuePreview() {
+    if (this._previewId) return;
+    this._previewId = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      PREVIEW_DEBOUNCE_MS,
+      () => {
+        this._previewId = 0;
+        this._showPreview();
+        return GLib.SOURCE_REMOVE;
+      },
+    );
   }
 
-  EndPreview() {
-    this._previewActive = false;
-    // Cancel a sample queued by _onBannerHidden, symmetric to disable().
-    if (this._ensureSampleId) {
-      GLib.source_remove(this._ensureSampleId);
-      this._ensureSampleId = 0;
-    }
-    this._destroySample();
-  }
-
-  _createSample() {
-    if (this._sampleSource) return; // at most one live source, no leak
+  _showPreview() {
+    if (this._dndActive()) return;
     const tray = Main.messageTray;
     if (!tray) return;
-    let source;
-    try {
-      source = this._buildSampleSource(tray);
-    } catch (err) {
-      logError(
-        err,
-        "[notification-banner] failed to create position-preview sample",
-      );
-      return;
-    }
+    this._destroySample(); // replace any still-visible previous sample
+    const source = this._buildSampleSource(tray);
     this._sampleSource = source;
     source.connectObject(
       "destroy",
@@ -218,37 +191,21 @@ export default class NotificationBannerExtension extends Extension {
     );
   }
 
-  // Transient CRITICAL sample (CRITICAL prevents auto-hide, transient keeps it
-  // out of history); handles the GNOME 45 vs 46+ constructor differences.
+  // Transient sample, default urgency so GNOME auto-hides it on the normal banner
+  // timeout; transient keeps it out of notification history.
   _buildSampleSource(tray) {
-    const modern = typeof MessageTray.getSystemSource === "function";
-    if (modern) {
-      const source = new MessageTray.Source({
-        title: SAMPLE_TITLE,
-        iconName: SAMPLE_ICON,
-      });
-      tray.add(source);
-      const notification = new MessageTray.Notification({
-        source,
-        title: SAMPLE_TITLE,
-        body: SAMPLE_BODY,
-        isTransient: true,
-        urgency: MessageTray.Urgency.CRITICAL,
-      });
-      source.addNotification(notification);
-      return source;
-    }
-    const source = new MessageTray.Source(SAMPLE_TITLE, SAMPLE_ICON);
+    const source = new MessageTray.Source({
+      title: SAMPLE_TITLE,
+      iconName: SAMPLE_ICON,
+    });
     tray.add(source);
-    const notification = new MessageTray.Notification(
+    const notification = new MessageTray.Notification({
       source,
-      SAMPLE_TITLE,
-      SAMPLE_BODY,
-      {},
-    );
-    notification.setTransient(true);
-    notification.setUrgency(MessageTray.Urgency.CRITICAL);
-    source.showNotification(notification);
+      title: SAMPLE_TITLE,
+      body: SAMPLE_BODY,
+      isTransient: true,
+    });
+    source.addNotification(notification);
     return source;
   }
 
@@ -260,39 +217,16 @@ export default class NotificationBannerExtension extends Extension {
     }
   }
 
-  _ensureSample() {
-    if (!this._previewActive) return;
-    if (this._dndActive()) return;
-    const tray = Main.messageTray;
-    if (!tray || tray._banner != null) return;
-    this._createSample();
-  }
-
-  // Deferred to the next idle tick to avoid re-entering the tray state machine
-  // from inside its own _hideNotificationCompleted.
-  _onBannerHidden() {
-    if (!this._previewActive) return;
-    if (this._dndActive()) return;
-    if (this._ensureSampleId) return; // already queued
-    this._ensureSampleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-      this._ensureSampleId = 0;
-      this._ensureSample();
-      return GLib.SOURCE_REMOVE;
-    });
-  }
-
   _dndActive() {
     return this._notificationSettings
       ? !this._notificationSettings.get_boolean("show-banners")
       : false;
   }
 
-  // Requires the GNOME 46+ banner structure; early-out on 45.
   _decorateBanner(tray) {
     const banner = tray?._banner ?? null;
     const settings = this._settings;
     if (!banner || !settings) return;
-    if (!banner._header || !banner._bodyLabel) return; // pre-46 structure
 
     const notification = tray._notification ?? null;
     // Reset to stock, then apply only enabled options, so toggles turned off
@@ -373,7 +307,7 @@ export default class NotificationBannerExtension extends Extension {
 
   // Called only for the current banner, so body comes from the active notification.
   _undecorateBanner(banner) {
-    if (!banner || !banner._header || !banner._bodyLabel) return;
+    if (!banner) return;
     this._resetBannerDecorations(banner, this._messageTray?._notification ?? null);
   }
 
@@ -428,16 +362,11 @@ export default class NotificationBannerExtension extends Extension {
 
     this._undecorateBanner(this._messageTray?._banner ?? null);
 
-    this._previewActive = false;
-    if (this._ensureSampleId) {
-      GLib.source_remove(this._ensureSampleId);
-      this._ensureSampleId = 0;
+    if (this._previewId) {
+      GLib.source_remove(this._previewId);
+      this._previewId = 0;
     }
     this._destroySample();
-    if (this._dbus) {
-      this._dbus.unexport();
-      this._dbus = null;
-    }
     this._notificationSettings = null;
     this._teardown();
   }

@@ -5,11 +5,11 @@ Guidance for AI agents and contributors working on this extension.
 ## Table of Contents
 
 - [Project overview](#project-overview)
-- [Hard constraint: GNOME 45-50](#hard-constraint-gnome-45-50)
+- [Hard constraint: GNOME 46-50](#hard-constraint-gnome-46-50)
 - [API surface used](#api-surface-used)
 - [Positioning model](#positioning-model)
 - [Banner decoration model](#banner-decoration-model)
-- [Known API differences across versions](#known-api-differences-across-versions)
+- [Banner structure across 46-50](#banner-structure-across-46-50)
 - [Procedure: verify against a GNOME version](#procedure-verify-against-a-gnome-version)
 - [Procedure: add support for a new GNOME version](#procedure-add-support-for-a-new-gnome-version)
 - [Syntax check and schema](#syntax-check-and-schema)
@@ -21,52 +21,48 @@ Guidance for AI agents and contributors working on this extension.
 `notification-banner` repositions the GNOME Shell notification banner and
 customizes its content and appearance. The rationale for each approach
 (alignment + translation, the `bannerAlignment` guard, the `_showNotification`
-decoration hook, stock-by-default settings, the GNOME 46+ requirement for
-content) is recorded in [docs/ADR](docs/ADR). Read the ADRs before changing how
+decoration hook, stock-by-default settings) is recorded in
+[docs/ADR](docs/ADR). Read the ADRs before changing how
 the banner is positioned or decorated.
 
 The name omits a `-position` suffix because it also covers content/appearance
 (see [docs/ADR/0007-scope-and-name.md](docs/ADR/0007-scope-and-name.md)).
 
-## Hard constraint: GNOME 45-50
+## Hard constraint: GNOME 46-50
 
-`metadata.json` declares `shell-version` 45 through 50. Every change MUST keep
+`metadata.json` declares `shell-version` 46 through 50. Every change MUST keep
 the extension working across all of them. GNOME's API is not stable across major
 versions, so any use of a Meta/Shell/Clutter/St symbol must be verified against
 each declared version. Do not assume a symbol exists just because it works on the
 locally installed version.
 
-Two compatibility tiers:
-
-- Positioning: GNOME 45-50.
-- Content/appearance decoration: GNOME 46+ only (the banner was restructured in
-  46). On 45 the decoration hook detects the old structure and returns early.
+Both positioning and content/appearance decoration target GNOME 46-50; the
+banner structure used for decoration was introduced in GNOME 46.
 
 ## API surface used
 
 | Symbol                                            | Source       | Tier      | Notes                                            |
 | ------------------------------------------------- | ------------ | --------- | ------------------------------------------------ |
-| `Extension`, `InjectionManager`, `getSettings()`  | gnome-shell  | 45-50     | `js/extensions/extension.js`, since 45           |
-| `Main.messageTray`                                | gnome-shell  | 45-50     | singleton, `js/ui/main.js`                       |
-| `MessageTray._bannerBin`                          | gnome-shell  | 45-50     | private banner container                         |
-| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 45-50     | setter guards x_align (position); getter returns FILL to disable side-based banner suppression (ADR 0012) |
-| `Main.panel.statusArea.dateMenu.menu`             | gnome-shell  | 45-50     | `open-state-changed` drives banner suppression (ADR 0012) |
-| `MessageTray.prototype` `bannerBlocked` accessor  | gnome-shell  | 45-50     | written (not redefined) to suppress while the list is open |
-| `MessageTray.prototype._showNotification`         | gnome-shell  | 45-50     | overridden to decorate `this._banner`            |
-| `MessageTray._banner` / `_notification` / `_expandBanner` | gnome-shell | 45-50 | banner instance, source notification, expand call |
-| `St.Widget` `x_align`/`y_align`, `translation_x/y` | mutter      | 45-50     | `Clutter.ActorAlign`, paint-time offset          |
+| `Extension`, `InjectionManager`, `getSettings()`  | gnome-shell  | 46-50     | `js/extensions/extension.js` (ESM extensions)    |
+| `Main.messageTray`                                | gnome-shell  | 46-50     | singleton, `js/ui/main.js`                       |
+| `MessageTray._bannerBin`                          | gnome-shell  | 46-50     | private banner container                         |
+| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 46-50     | setter guards x_align (position); getter returns FILL to disable side-based banner suppression (ADR 0012) |
+| `Main.panel.statusArea.dateMenu.menu`             | gnome-shell  | 46-50     | `open-state-changed` drives banner suppression (ADR 0012) |
+| `MessageTray.prototype` `bannerBlocked` accessor  | gnome-shell  | 46-50     | written (not redefined) to suppress while the list is open |
+| `MessageTray.prototype._showNotification`         | gnome-shell  | 46-50     | overridden to decorate `this._banner`            |
+| `MessageTray._banner` / `_notification` / `_expandBanner` | gnome-shell | 46-50 | banner instance, source notification, expand call |
+| `St.Widget` `x_align`/`y_align`, `translation_x/y` | mutter      | 46-50     | `Clutter.ActorAlign`, paint-time offset          |
 | banner `titleLabel` / `_bodyLabel` / `_header.timeLabel` / `_icon` | gnome-shell | 46-50 | content widgets (`js/ui/messageList.js`) |
 | `_bodyLabel.setMarkup(text, allowMarkup)`         | gnome-shell  | 46-50     | re-set body keeping newlines                     |
 | style classes `message-source-icon` / `message-header` / `message-box` | gnome-shell | 46-50 | found via `has_style_class_name` |
-| `MessageTray.Source` / `Notification` / `Urgency` / `getSystemSource` | gnome-shell | 45-50 | preview sample; 45 positional + setUrgency/setTransient, 46+ params |
-| `MessageTray.prototype._hideNotificationCompleted`| gnome-shell  | 45-50     | overridden to re-ensure the preview sample       |
-| `Gio.DBusExportedObject.wrapJSObject` / `Gio.DBus.session` | gio  | 45-50     | BeginPreview/EndPreview between prefs and shell   |
-| `org.gnome.desktop.notifications` `show-banners`  | gsettings    | 45-50     | DND detection (no preview sample under DND)       |
+| `MessageTray.Source` / `Notification`             | gnome-shell  | 46-50     | preview sample on settings change; params-object constructors, default (NORMAL) urgency auto-hides |
+| `GLib.timeout_add` / `source_remove`              | glib         | 46-50     | debounce a burst of setting writes into one sample |
+| `org.gnome.desktop.notifications` `show-banners`  | gsettings    | 46-50     | DND detection (no preview sample under DND)       |
 
 ## Positioning model
 
 Verified against `js/ui/messageTray.js` (gnome-50) and `_bannerBin` /
-`bannerAlignment` presence on 45-50:
+`bannerAlignment` presence on 46-50:
 
 - `MessageTray` is constrained to the primary monitor work area and uses a
   `Clutter.BinLayout`. `_bannerBin` is a content-sized child whose `x_align` /
@@ -94,27 +90,27 @@ decorates `this._banner`:
   / font-size percentage; trim paddings on `message-header` / `message-box` for
   compact mode.
 
-The decoration is gated on `banner._header && banner._bodyLabel` (the modern
-structure), so it no-ops on GNOME 45. Decorations live on per-notification
-banners that GNOME destroys, so nothing needs explicit cleanup beyond removing
-the `_showNotification` override in `disable()`.
+Decorations live on per-notification banners that GNOME destroys, so nothing
+needs explicit cleanup beyond removing the `_showNotification` override in
+`disable()`.
 
-## Known API differences across versions
+## Banner structure across 46-50
 
-| Aspect                                  | GNOME 45                  | GNOME 46-50                         |
-| --------------------------------------- | ------------------------- | ----------------------------------- |
-| `_bannerBin`, `bannerAlignment`         | present                   | present                             |
-| `panel.js` resets `bannerAlignment`     | yes                       | yes                                 |
-| banner `_header` / `_bodyLabel` / `timeLabel` | absent (old layout)  | present (`MessageHeader` redesign)  |
-| content/appearance decoration           | inactive (skipped)        | active                              |
+The relevant API is uniform across the supported range:
 
-This is why content/appearance is GNOME 46+: the gnome-45 `messageList.js` has a
-different widget structure (verified: `_header` / `_bodyLabel` / `timeLabel` are
-absent on the `gnome-45` branch).
+| Aspect                                        | GNOME 46-50                        |
+| --------------------------------------------- | ---------------------------------- |
+| `_bannerBin`, `bannerAlignment`               | present                            |
+| `panel.js` resets `bannerAlignment`           | yes                                |
+| banner `_header` / `_bodyLabel` / `timeLabel` | present (`MessageHeader` redesign) |
+
+GNOME 45 is not supported: its `messageList.js` has a different widget structure
+(`_header` / `_bodyLabel` / `timeLabel` absent), and `getSystemSource` and the
+params-object `Source` / `Notification` constructors were introduced in 46.
 
 ## Procedure: verify against a GNOME version
 
-Upstream sources are checked out locally (full clones with `gnome-45` …
+Upstream sources are checked out locally (full clones with `gnome-46` …
 `gnome-50` branches):
 
 - `/home/vyt/devel/gnome/gnome-shell`
@@ -125,12 +121,12 @@ Use `git grep <ref>` without switching the working tree:
 ```sh
 cd /home/vyt/devel/gnome/gnome-shell
 # positioning symbols
-for v in 45 46 47 48 49 50; do
+for v in 46 47 48 49 50; do
   echo "=== gnome-$v ==="
   git grep -nE '_bannerBin|get bannerAlignment' origin/gnome-$v -- js/ui/messageTray.js | head
 done
-# banner content structure (absent on 45)
-for v in 45 46 47 48 49 50; do
+# banner content structure
+for v in 46 47 48 49 50; do
   echo "=== gnome-$v ==="
   git grep -nE 'this\._header|_bodyLabel|timeLabel' origin/gnome-$v -- js/ui/messageList.js | head
 done

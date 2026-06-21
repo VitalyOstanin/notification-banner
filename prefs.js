@@ -30,41 +30,6 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
     this._addAppearanceGroup(page, settings);
 
     window.add(page);
-
-    // Keep a sample banner on screen while this window is open (live position).
-    // Arm EndPreview before BeginPreview; close-request returns false to allow close.
-    window.connect("close-request", () => {
-      this._callPreview("EndPreview");
-      return false;
-    });
-    this._callPreview("BeginPreview");
-  }
-
-  // Best-effort call into the extension; fails silently if it is disabled or
-  // not exporting (preview is optional).
-  _callPreview(method) {
-    try {
-      Gio.DBus.session.call(
-        "org.gnome.Shell",
-        "/org/gnome/Shell/Extensions/NotificationBanner",
-        "org.gnome.Shell.Extensions.NotificationBanner",
-        method,
-        null,
-        null,
-        Gio.DBusCallFlags.NONE,
-        -1,
-        null,
-        (conn, res) => {
-          try {
-            conn.call_finish(res);
-          } catch (_e) {
-            // extension disabled or not exporting; preview is best-effort
-          }
-        },
-      );
-    } catch (_e) {
-      // session bus unavailable; preview is best-effort
-    }
   }
 
   _addPositionGroup(page, settings) {
@@ -95,10 +60,7 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
   }
 
   _addContentGroup(page, settings) {
-    const group = new Adw.PreferencesGroup({
-      title: "Content",
-      description: "Requires GNOME 46+; inactive on GNOME 45.",
-    });
+    const group = new Adw.PreferencesGroup({ title: "Content" });
     page.add(group);
 
     group.add(
@@ -122,10 +84,7 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
   }
 
   _addAppearanceGroup(page, settings) {
-    const group = new Adw.PreferencesGroup({
-      title: "Appearance",
-      description: "Requires GNOME 46+; inactive on GNOME 45.",
-    });
+    const group = new Adw.PreferencesGroup({ title: "Appearance" });
     page.add(group);
 
     group.add(

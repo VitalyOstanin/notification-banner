@@ -59,8 +59,7 @@
       </description>
     </key>
 
-    <!-- Content. All off / stock by default. Requires the GNOME 46+ banner
-         structure; silently inactive on GNOME 45. -->
+    <!-- Content. All off / stock by default. -->
     <key name="dedupe-title" type="b">
       <default>false</default>
       <summary>Hide a redundant notification title</summary>
@@ -97,7 +96,7 @@
       </description>
     </key>
 
-    <!-- Appearance. All stock by default. Requires the GNOME 46+ structure. -->
+    <!-- Appearance. All stock by default. -->
     <key name="show-app-icon" type="b">
       <default>true</default>
       <summary>Show the application icon in the header</summary>

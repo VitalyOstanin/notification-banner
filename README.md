@@ -76,13 +76,12 @@ actually shows the same notifications. See
 
 ## Compatibility
 
-GNOME Shell 45-50.
+GNOME Shell 46-50.
 
-- Positioning works on 45-50 (it relies on `MessageTray._bannerBin` and the
-  `bannerAlignment` accessor, verified present on every branch).
-- Content and appearance customization requires the banner structure introduced
-  in GNOME 46 (`MessageHeader`, `_bodyLabel`). On GNOME 45 those settings are
-  silently inactive and only positioning applies.
+- Positioning relies on `MessageTray._bannerBin` and the `bannerAlignment`
+  accessor, verified present on every branch.
+- Content and appearance customization relies on the banner structure introduced
+  in GNOME 46 (`MessageHeader`, `_bodyLabel`).
 
 The implementation does not patch the bodies of GNOME methods; it reads stable
 container/widget properties and decorates each banner after GNOME creates it. See
@@ -135,11 +134,10 @@ against new GNOME Shell versions.
   connects to the settings `changed` signal, and applies the current position.
 - `_applyPosition()` sets `x_align` / `y_align` on the banner container and sets
   `translation_x` / `translation_y` for padding.
-- `_decorateBanner()` runs after GNOME builds a banner. If the modern (46+)
-  structure is present, it applies the content and appearance settings: hides the
-  duplicate title, re-sets the body keeping newlines, toggles timestamp/icons,
-  expands, and applies inline styles for width / radius / font scale / compact
-  padding.
+- `_decorateBanner()` runs after GNOME builds a banner and applies the content
+  and appearance settings: hides the duplicate title, re-sets the body keeping
+  newlines, toggles timestamp/icons, expands, and applies inline styles for
+  width / radius / font scale / compact padding.
 - The settings `changed` handler reapplies the position and re-runs the
   (idempotent) banner decoration, so changes show on a banner already on screen.
 - `disable()` restores the `_showNotification` override, the `bannerAlignment`
