@@ -1,6 +1,6 @@
 # 0011 - Live position preview via DBus and a transient CRITICAL sample
 
-Status: Accepted
+Status: Superseded by [0014](0014-position-preview-via-gsettings-change.md)
 
 ## Context
 
