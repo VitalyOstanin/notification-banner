@@ -11,6 +11,9 @@ const H_LABELS = ["Left", "Center", "Right"];
 const V_NICKS = ["top", "center", "bottom"];
 const V_LABELS = ["Top", "Center", "Bottom"];
 
+// A page step (PageUp/PageDown) covers this many spin increments.
+const PAGE_STEP_FACTOR = 10;
+
 // Spin ranges; lower/upper must stay in sync with <range> in the gschema.
 const RANGES = {
   "padding-horizontal": { lower: 0, upper: 400 },
@@ -147,7 +150,7 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
         lower,
         upper,
         step_increment: step,
-        page_increment: step * 10,
+        page_increment: step * PAGE_STEP_FACTOR,
       }),
     });
     settings.bind(key, row, "value", Gio.SettingsBindFlags.DEFAULT);

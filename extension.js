@@ -22,6 +22,15 @@ const V_ALIGN = {
   bottom: Clutter.ActorAlign.END,
 };
 
+// Placement keys: a change to any of these only needs a reposition; every other
+// key only needs a re-decoration.
+const POSITION_KEYS = new Set([
+  "horizontal-position",
+  "vertical-position",
+  "padding-horizontal",
+  "padding-vertical",
+]);
+
 const SAMPLE_TITLE = "Notification banner";
 const SAMPLE_BODY = "Position preview";
 const SAMPLE_ICON = "dialog-information-symbolic";
@@ -58,13 +67,13 @@ export default class NotificationBannerExtension extends Extension {
 
     // A prefs write (separate process) emits this `changed` on the shell-side
     // settings, so the open prefs window is observable here without any extra
-    // IPC: reapply the position, redecorate, and show a sample at the new
-    // placement so the edit is previewed.
+    // IPC: reposition (placement keys) or redecorate (the rest) and show a
+    // sample at the new placement so the edit is previewed.
     this._settings.connectObject(
       "changed",
-      () => {
-        this._applyPosition();
-        this._decorateBanner(this._messageTray);
+      (_settings, key) => {
+        if (POSITION_KEYS.has(key)) this._applyPosition();
+        else this._decorateBanner(this._messageTray);
         this._queuePreview();
       },
       this,
@@ -254,7 +263,7 @@ export default class NotificationBannerExtension extends Extension {
 
     // App icon has no named field; find it by style class.
     if (!settings.get_boolean("show-app-icon")) {
-      const appIcon = this._findByStyleClass(banner._header, "message-source-icon");
+      const appIcon = this._styleChild(banner._header, "message-source-icon");
       if (appIcon) appIcon.visible = false;
     }
 
@@ -276,8 +285,7 @@ export default class NotificationBannerExtension extends Extension {
     if (rootStyle.length) banner.set_style(rootStyle.join(" "));
 
     if (settings.get_boolean("compact")) {
-      const header = this._findByStyleClass(banner, "message-header");
-      const box = this._findByStyleClass(banner, "message-box");
+      const { header, box } = this._compactTargets(banner);
       if (header) header.set_style("padding-bottom: 0; min-height: 0;");
       if (box)
         box.set_style(
@@ -291,12 +299,11 @@ export default class NotificationBannerExtension extends Extension {
   _resetBannerDecorations(banner, notification) {
     if (banner.titleLabel) banner.titleLabel.visible = true;
     if (banner._header.timeLabel) banner._header.timeLabel.visible = true;
-    const appIcon = this._findByStyleClass(banner._header, "message-source-icon");
+    const appIcon = this._styleChild(banner._header, "message-source-icon");
     if (appIcon) appIcon.visible = true;
     if (banner._icon) banner._icon.visible = true;
     banner.set_style(null);
-    const header = this._findByStyleClass(banner, "message-header");
-    const box = this._findByStyleClass(banner, "message-box");
+    const { header, box } = this._compactTargets(banner);
     if (header) header.set_style(null);
     if (box) box.set_style(null);
     banner._bodyLabel.setMarkup(
@@ -309,6 +316,25 @@ export default class NotificationBannerExtension extends Extension {
   _undecorateBanner(banner) {
     if (!banner) return;
     this._resetBannerDecorations(banner, this._messageTray?._notification ?? null);
+  }
+
+  // Memoize the style-class lookup on the actor. Banners are per-notification
+  // objects destroyed on hide, so the cache lives exactly as long as the actor
+  // and needs no invalidation; it spares the recursive walk on every redecorate.
+  _styleChild(actor, styleClass) {
+    if (!actor) return null;
+    const cache = (actor._nbStyleChildren ??= new Map());
+    if (cache.has(styleClass)) return cache.get(styleClass);
+    const found = this._findByStyleClass(actor, styleClass);
+    cache.set(styleClass, found);
+    return found;
+  }
+
+  _compactTargets(banner) {
+    return {
+      header: this._styleChild(banner, "message-header"),
+      box: this._styleChild(banner, "message-box"),
+    };
   }
 
   _findByStyleClass(actor, styleClass) {
@@ -324,11 +350,6 @@ export default class NotificationBannerExtension extends Extension {
 
   disable() {
     this._settings?.disconnectObject(this);
-
-    if (this._injectionManager) {
-      this._injectionManager.clear();
-      this._injectionManager = null;
-    }
 
     if (this._dateMenu?.menu) {
       this._dateMenu.menu.disconnectObject(this);
