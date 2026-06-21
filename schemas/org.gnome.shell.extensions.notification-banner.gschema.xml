@@ -132,5 +132,20 @@
       <summary>Banner font scale (%)</summary>
       <description>Scales the banner text size. 100 keeps the GNOME default.</description>
     </key>
+
+    <!-- Internal trigger, not shown in the prefs UI. prefs.js bumps it (modulo
+         10) when the preferences window opens, so the shell-side `changed`
+         handler shows a position preview without a separate IPC channel. The
+         cycle guarantees each write changes the value (a no-op write emits no
+         `changed`) while keeping the stored number bounded. -->
+    <key name="preview-tick" type="i">
+      <default>0</default>
+      <range min="0" max="9"/>
+      <summary>Internal position-preview trigger</summary>
+      <description>
+        Incremented modulo 10 by the preferences window on open to request a
+        position preview. Not a user setting; its value is ignored by the shell.
+      </description>
+    </key>
   </schema>
 </schemalist>

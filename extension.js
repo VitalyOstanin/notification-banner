@@ -31,6 +31,10 @@ const POSITION_KEYS = new Set([
   "padding-vertical",
 ]);
 
+// Internal key the prefs window bumps on open to request a preview (see schema).
+// Not a real setting, so it only previews — no reposition, no redecoration.
+const PREVIEW_TICK_KEY = "preview-tick";
+
 const SAMPLE_TITLE = "Notification banner";
 const SAMPLE_BODY = "Position preview";
 const SAMPLE_ICON = "dialog-information-symbolic";
@@ -66,12 +70,15 @@ export default class NotificationBannerExtension extends Extension {
     // A prefs write (separate process) emits this `changed` on the shell-side
     // settings, so the open prefs window is observable here without any extra
     // IPC: reposition (placement keys) or redecorate (the rest) and show a
-    // sample at the new placement so the edit is previewed.
+    // sample at the new placement so the edit is previewed. The prefs window
+    // also bumps preview-tick on open, which only requests a preview.
     this._settings.connectObject(
       "changed",
       (_settings, key) => {
-        if (POSITION_KEYS.has(key)) this._applyPosition();
-        else this._decorateBanner(this._messageTray);
+        if (key !== PREVIEW_TICK_KEY) {
+          if (POSITION_KEYS.has(key)) this._applyPosition();
+          else this._decorateBanner(this._messageTray);
+        }
         this._queuePreview();
       },
       this,

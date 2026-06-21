@@ -139,7 +139,11 @@ against new GNOME Shell versions.
   newlines, toggles timestamp/icons, expands, and applies inline styles for
   width / radius / font scale.
 - The settings `changed` handler reapplies the position and re-runs the
-  (idempotent) banner decoration, so changes show on a banner already on screen.
+  (idempotent) banner decoration, so changes show on a banner already on screen,
+  and shows a short-lived sample banner so the placement is previewed. Opening the
+  preferences window also triggers one preview (via an internal `preview-tick`
+  key the window bumps on open), so the current placement is shown immediately,
+  not only after the first edit.
 - `disable()` restores the `_showNotification` override, the `bannerAlignment`
   accessor, the container alignment and translation, disconnects the settings
   handler, and reverts the decoration on a banner still visible at that moment.

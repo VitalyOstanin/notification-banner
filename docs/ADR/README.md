@@ -22,3 +22,4 @@ This directory records the technical decisions made for the
 | [0012](0012-suppress-banners-only-for-the-notification-list.md) | Suppress banners only for the notification list      | Accepted |
 | [0013](0013-drop-gnome-45-support.md)                    | Drop GNOME 45, support GNOME 46-50                     | Accepted |
 | [0014](0014-position-preview-via-gsettings-change.md)    | Position preview via the settings `changed` signal     | Accepted |
+| [0015](0015-preview-on-prefs-window-open.md)             | Also preview the position when the prefs window opens  | Accepted |

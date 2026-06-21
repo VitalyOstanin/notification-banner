@@ -11,28 +11,6 @@ the inner `.message-header-content`, while the override targeted the parent
 `.message-header` (unverified at runtime). If reintroduced, target the element
 that actually carries the height and verify the shrink in a running shell.
 
-## Preview on prefs window open
-
-The position preview only appears after the first setting change, not when the
-preferences window opens. Root cause: the preview is driven solely by the
-shell-side `Gio.Settings` `changed` handler (extension.js), and opening the prefs
-window writes nothing to GSettings, so no `changed` fires until the user edits a
-setting.
-
-There is no shell-side "prefs window opened" event: the window lives in a
-separate process (the `org.gnome.Shell.Extensions` service), and `Gio.Settings`
-only exposes `changed` / `change-event` / `writable-changed` /
-`writable-change-event`, all of which fire only on a value/writability write. The
-window-open event (`map` / `show`) is available only in `prefs.js`, on the
-`Adw.PreferencesWindow` passed to `fillPreferencesWindow`.
-
-Possible fix (deferred): in `prefs.js`, on the window `map` signal, bump a
-dedicated trigger key so the shell shows a preview via `changed::<key>`. Two
-variants differ only in stored dconf state — a monotonic counter, or a
-self-resetting trigger the shell zeroes after previewing. Needs a new ADR
-refining ADR 0014 (preview via gsettings change) and a schema key not shown in
-the UI.
-
 ## Adopt ESLint with `eslint-config-gnome`
 
 Set up linting the way gnome-shell itself does, rather than a plain formatter

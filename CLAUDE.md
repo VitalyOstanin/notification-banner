@@ -58,6 +58,7 @@ banner structure used for decoration was introduced in GNOME 46.
 | `MessageTray.Source` / `Notification`             | gnome-shell  | 46-50     | preview sample on settings change; params-object constructors, default (NORMAL) urgency auto-hides |
 | `GLib.timeout_add` / `source_remove`              | glib         | 46-50     | debounce a burst of setting writes into one sample |
 | `org.gnome.desktop.notifications` `show-banners`  | gsettings    | 46-50     | DND detection (no preview sample under DND)       |
+| `Adw.PreferencesWindow` `map` signal              | gtk          | 46-50     | prefs.js bumps the internal `preview-tick` key on open to preview the position (ADR 0015) |
 
 ## Positioning model
 
