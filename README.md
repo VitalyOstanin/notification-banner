@@ -10,6 +10,7 @@ nothing until you configure it.
 - [What it does](#what-it-does)
 - [Settings](#settings)
 - [Why a property guard for horizontal position](#why-a-property-guard-for-horizontal-position)
+- [When banners are suppressed](#when-banners-are-suppressed)
 - [Compatibility](#compatibility)
 - [Installation](#installation)
 - [Development](#development)
