@@ -87,8 +87,7 @@ decorates `this._banner`:
   hide `_header.timeLabel`; call `_expandBanner(true)`;
 - appearance: hide the app icon (found by style class `message-source-icon`) and
   `_icon`; apply inline `set_style` on the banner root for width / border-radius
-  / font-size percentage; trim paddings on `message-header` / `message-box` for
-  compact mode.
+  / font-size percentage.
 
 Decorations live on per-notification banners that GNOME destroys, so nothing
 needs explicit cleanup beyond removing the `_showNotification` override in
@@ -171,7 +170,7 @@ glib-compile-schemas schemas/
    padding; trigger `notify-send "Test" "Body"` and confirm placement.
 6. Toggle content/appearance settings and trigger new notifications; confirm
    each takes effect (dedupe title, multiline body when expanded, hidden
-   timestamp/icons, width/radius/font scale/compact).
+   timestamp/icons, width/radius/font scale).
 7. Lock and unlock the session; confirm the horizontal position is kept (the
    `bannerAlignment` guard).
 8. Check `journalctl -b /usr/bin/gnome-shell -p warning` for extension errors.

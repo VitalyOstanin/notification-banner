@@ -97,9 +97,6 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
       this._switchRow(settings, "show-notification-icon", "Show notification icon", {}),
     );
     group.add(
-      this._switchRow(settings, "compact", "Compact spacing", {}),
-    );
-    group.add(
       this._spinRow(settings, "banner-width", "Banner width (px)", {
         subtitle: "0 keeps the GNOME default (34em)",
       }),

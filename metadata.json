@@ -1,7 +1,7 @@
 {
   "uuid": "notification-banner@VitalyOstanin",
   "name": "Notification Banner",
-  "description": "Repositions the GNOME Shell notification banner to any corner or edge of the primary monitor's work area, with configurable padding, and customizes the banner content and appearance (hide a duplicated title, keep newlines in the body, expand immediately, hide the timestamp or icons, override width, corner radius, font scale, compact spacing). All settings default to GNOME's stock look, so the extension changes nothing until configured. The horizontal position is enforced against GNOME's own panel logic, which otherwise resets it.",
+  "description": "Repositions the GNOME Shell notification banner to any corner or edge of the primary monitor's work area, with configurable padding, and customizes the banner content and appearance (hide a duplicated title, keep newlines in the body, expand immediately, hide the timestamp or icons, override width, corner radius, font scale). All settings default to GNOME's stock look, so the extension changes nothing until configured. The horizontal position is enforced against GNOME's own panel logic, which otherwise resets it.",
   "shell-version": ["46", "47", "48", "49", "50"],
   "settings-schema": "org.gnome.shell.extensions.notification-banner",
   "url": "https://github.com/VitalyOstanin/notification-banner",

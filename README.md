@@ -26,7 +26,7 @@ nothing until you configure it.
   keeps newlines in the body, shows the banner expanded immediately, and toggles
   the header timestamp.
 - Appearance: toggles the application icon and the large notification icon, and
-  overrides the banner width, corner radius, font scale and internal padding.
+  overrides the banner width, corner radius and font scale.
 
 Notifications otherwise behave as usual: they appear, animate, stay in the tray,
 and are clickable.
@@ -45,7 +45,6 @@ and are clickable.
 | Expand immediately       | on / off                | off     | Content    |
 | Show application icon     | on / off                | on      | Appearance |
 | Show notification icon    | on / off                | on      | Appearance |
-| Compact spacing          | on / off                | off     | Appearance |
 | Banner width             | 0-2000 px (0 = stock)   | 0       | Appearance |
 | Corner radius            | -1-200 px (-1 = stock)  | -1      | Appearance |
 | Font scale               | 50-200 % (100 = stock)  | 100     | Appearance |
@@ -138,7 +137,7 @@ against new GNOME Shell versions.
 - `_decorateBanner()` runs after GNOME builds a banner and applies the content
   and appearance settings: hides the duplicate title, re-sets the body keeping
   newlines, toggles timestamp/icons, expands, and applies inline styles for
-  width / radius / font scale / compact padding.
+  width / radius / font scale.
 - The settings `changed` handler reapplies the position and re-runs the
   (idempotent) banner decoration, so changes show on a banner already on screen.
 - `disable()` restores the `_showNotification` override, the `bannerAlignment`

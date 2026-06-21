@@ -132,11 +132,5 @@
       <summary>Banner font scale (%)</summary>
       <description>Scales the banner text size. 100 keeps the GNOME default.</description>
     </key>
-
-    <key name="compact" type="b">
-      <default>false</default>
-      <summary>Compact banner spacing</summary>
-      <description>Reduce the banner's internal paddings for a denser layout.</description>
-    </key>
   </schema>
 </schemalist>

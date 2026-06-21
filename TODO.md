@@ -1,5 +1,16 @@
 # TODO
 
+## Reconsider the compact-spacing setting
+
+The "Compact spacing" setting was removed (schema key, prefs row, and the
+`_applyBannerStyle` branch) pending a rework. It set `.message-box` padding to
+`3px 6px` and spacing to `4px` to shrink the banner height, and applied
+`padding-bottom: 0; min-height: 0` to `.message-header`. The header part likely
+had little effect: the stock `min-height: 24px` / `padding-bottom: 6px` live on
+the inner `.message-header-content`, while the override targeted the parent
+`.message-header` (unverified at runtime). If reintroduced, target the element
+that actually carries the height and verify the shrink in a running shell.
+
 ## Preview on prefs window open
 
 The position preview only appears after the first setting change, not when the

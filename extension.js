@@ -39,8 +39,6 @@ const PREVIEW_DEBOUNCE_MS = 250;
 
 // Value at which no font-size override is applied (mirrors the schema default).
 const FONT_SCALE_STOCK = 100;
-const COMPACT_BOX_PADDING = "3px 6px";
-const COMPACT_BOX_SPACING = "4px";
 
 export default class NotificationBannerExtension extends Extension {
   enable() {
@@ -243,7 +241,6 @@ export default class NotificationBannerExtension extends Extension {
     this._resetBannerDecorations(banner, notification);
 
     if (
-      banner.titleLabel &&
       settings.get_boolean("dedupe-title") &&
       banner.title === (notification?.source?.title ?? null)
     )
@@ -255,7 +252,7 @@ export default class NotificationBannerExtension extends Extension {
         banner._useBodyMarkup ?? false,
       );
 
-    if (banner._header.timeLabel && !settings.get_boolean("show-timestamp"))
+    if (!settings.get_boolean("show-timestamp"))
       banner._header.timeLabel.visible = false;
 
     // Monotonic: only ever expands; GNOME collapses on its own timing.
@@ -267,7 +264,7 @@ export default class NotificationBannerExtension extends Extension {
       if (appIcon) appIcon.visible = false;
     }
 
-    if (banner._icon && !settings.get_boolean("show-notification-icon"))
+    if (!settings.get_boolean("show-notification-icon"))
       banner._icon.visible = false;
 
     this._applyBannerStyle(banner, settings);
@@ -283,29 +280,17 @@ export default class NotificationBannerExtension extends Extension {
     if (fontScale !== FONT_SCALE_STOCK)
       rootStyle.push(`font-size: ${fontScale}%;`);
     if (rootStyle.length) banner.set_style(rootStyle.join(" "));
-
-    if (settings.get_boolean("compact")) {
-      const { header, box } = this._compactTargets(banner);
-      if (header) header.set_style("padding-bottom: 0; min-height: 0;");
-      if (box)
-        box.set_style(
-          `padding: ${COMPACT_BOX_PADDING}; spacing: ${COMPACT_BOX_SPACING};`,
-        );
-    }
   }
 
   // Stock look: shown elements, no style overrides, collapsed body. Shared by
   // _decorateBanner (reset before apply) and _undecorateBanner (final revert).
   _resetBannerDecorations(banner, notification) {
-    if (banner.titleLabel) banner.titleLabel.visible = true;
-    if (banner._header.timeLabel) banner._header.timeLabel.visible = true;
+    banner.titleLabel.visible = true;
+    banner._header.timeLabel.visible = true;
     const appIcon = this._styleChild(banner._header, "message-source-icon");
     if (appIcon) appIcon.visible = true;
-    if (banner._icon) banner._icon.visible = true;
+    banner._icon.visible = true;
     banner.set_style(null);
-    const { header, box } = this._compactTargets(banner);
-    if (header) header.set_style(null);
-    if (box) box.set_style(null);
     banner._bodyLabel.setMarkup(
       (notification?.body ?? "").replace(/\n/g, " "),
       banner._useBodyMarkup ?? false,
@@ -328,13 +313,6 @@ export default class NotificationBannerExtension extends Extension {
     const found = this._findByStyleClass(actor, styleClass);
     cache.set(styleClass, found);
     return found;
-  }
-
-  _compactTargets(banner) {
-    return {
-      header: this._styleChild(banner, "message-header"),
-      box: this._styleChild(banner, "message-box"),
-    };
   }
 
   _findByStyleClass(actor, styleClass) {

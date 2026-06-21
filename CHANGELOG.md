@@ -24,9 +24,8 @@ First release. Not yet published to extensions.gnome.org.
   resets it.
 - Content: hide a title that repeats the application name, keep newlines in the
   body, show the banner expanded immediately, and toggle the header timestamp.
-- Appearance: toggle the application icon and the large notification icon,
-  override banner width, corner radius and font scale, and switch to compact
-  spacing.
+- Appearance: toggle the application icon and the large notification icon, and
+  override banner width, corner radius and font scale.
 - Live position preview: editing a setting while the preferences window is open
   shows a sample banner at the new placement.
 - All settings default to GNOME's stock look, so the extension changes nothing
