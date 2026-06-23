@@ -184,5 +184,4 @@ glib-compile-schemas schemas/
 - `prefs.js` — Adwaita preferences (Position / Content / Appearance groups).
 - `metadata.json` — uuid, name, description, `shell-version`, `settings-schema`.
 - `schemas/` — GSettings schema for all settings.
-- `stylesheet.css` — placeholder; styling is applied from JS, not from here.
 - `docs/ADR/` — architecture decision records.
