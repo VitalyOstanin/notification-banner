@@ -24,3 +24,4 @@ This directory records the technical decisions made for the
 | [0014](0014-position-preview-via-gsettings-change.md)    | Position preview via the settings `changed` signal     | Superseded by [0016](0016-persistent-position-preview.md) |
 | [0015](0015-preview-on-prefs-window-open.md)             | Also preview the position when the prefs window opens  | Superseded by [0016](0016-persistent-position-preview.md) |
 | [0016](0016-persistent-position-preview.md)             | Persistent position preview while the prefs window is open | Accepted |
+| [0017](0017-guard-decorate-against-stale-override.md)   | Guard `_decorateBanner` against a stale override after disable | Accepted |

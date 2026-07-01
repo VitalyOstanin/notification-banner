@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Do not throw from the `_showNotification` override when it fires stale after
+  disable (possible when another extension also wraps `_showNotification`): guard
+  `_decorateBanner` against null settings. Previously this threw during screen
+  unlock and, landing inside GNOME's `_updateState`, froze the whole message tray
+  until relogin. See ADR [0017](docs/ADR/0017-guard-decorate-against-stale-override.md).
+
 ## [1.0]
 
 First release. Not yet published to extensions.gnome.org.

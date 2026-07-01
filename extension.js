@@ -289,7 +289,10 @@ export default class NotificationBannerExtension extends Extension {
   _decorateBanner(tray) {
     const banner = tray._banner;
     const settings = this._settings;
-    if (!banner) return;
+    // When another extension also wraps _showNotification, InjectionManager
+    // can leave this override firing after disable() nulled _settings (seen
+    // during screen unlock); bail out instead of dereferencing null settings.
+    if (!banner || !settings) return;
 
     const notification = tray._notification ?? null;
     // Reset to stock, then apply only enabled options, so toggles turned off
