@@ -122,14 +122,16 @@ export default class NotificationBannerExtension extends Extension {
     Object.defineProperty(proto, "bannerAlignment", {
       configurable: true,
       get() {
-        // Read only by panel.js, to compare against each indicator's box
-        // alignment and suppress banners while a same-aligned menu is open.
-        // Returning FILL (matches no panel box: START/CENTER/END) disables that
-        // blanket per-side suppression, which would otherwise hide banners for
-        // any menu on the banner's side (e.g. an unrelated right-panel menu).
-        // Suppression for the notification list is wired explicitly to the
-        // dateMenu instead (see _installDateMenuSuppression and ADR 0012).
-        return Clutter.ActorAlign.FILL;
+        // Read only by panel.js, to hold banners while a menu in the panel box
+        // of this alignment is open. FILL matches no box, so only the dateMenu
+        // holds them (ADR 0012); the option keys it to the banner's side
+        // (ADR 0018).
+        if (!settings.get_boolean("hold-for-same-side-menus"))
+          return Clutter.ActorAlign.FILL;
+        return (
+          H_ALIGN[settings.get_string("horizontal-position")] ??
+          Clutter.ActorAlign.CENTER
+        );
       },
       set(_align) {
         this._bannerBin.set_x_align(
@@ -348,7 +350,8 @@ export default class NotificationBannerExtension extends Extension {
     banner._header.timeLabel.visible = true;
     const appIcon = this._styleChild(banner._header, "message-source-icon");
     if (appIcon) appIcon.visible = true;
-    banner._icon.visible = true;
+    // As in messageList.js `set icon`: shown only when the notification has one.
+    banner._icon.visible = !!banner._icon.gicon;
     banner.set_style(null);
     banner._bodyLabel.setMarkup(
       (notification?.body ?? "").replace(/\n/g, " "),

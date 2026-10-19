@@ -12,7 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Position: "Hold for menus on the same side" (off by default) delays new
+  banners while a panel menu in the panel box on the banner's side is open, so a
+  banner moved to a corner does not overlap a menu such as Quick Settings. See
+  ADR [0018](docs/ADR/0018-opt-in-hold-for-same-side-menus.md).
+
 ### Fixed
+
+- With default settings, a notification without an image no longer gets an
+  empty icon slot that shifted the title and body about 12 px to the right: the
+  large icon is shown only when the notification provides one, as in GNOME.
 
 - Do not throw from the `_showNotification` override when it fires stale after
   disable (possible when another extension also wraps `_showNotification`): guard

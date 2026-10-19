@@ -59,6 +59,17 @@
       </description>
     </key>
 
+    <key name="hold-for-same-side-menus" type="b">
+      <default>false</default>
+      <summary>Hold banners while a panel menu on their side is open</summary>
+      <description>
+        When enabled, a new banner waits while a panel menu in the panel box on
+        the banner's horizontal side (left, center or right) is open, so the two
+        do not overlap. When disabled, banners wait only while the notification
+        list (the clock menu) is open.
+      </description>
+    </key>
+
     <!-- Content. All off / stock by default. -->
     <key name="dedupe-title" type="b">
       <default>false</default>

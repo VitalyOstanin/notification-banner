@@ -33,21 +33,22 @@ and are clickable.
 
 ## Settings
 
-| Setting                  | Values                  | Default | Group      |
-| ------------------------ | ----------------------- | ------- | ---------- |
-| Horizontal position      | left / center / right   | center  | Position   |
-| Vertical position        | top / center / bottom   | top     | Position   |
-| Horizontal padding       | 0-400 px                | 0       | Position   |
-| Vertical padding         | 0-400 px                | 0       | Position   |
-| Hide duplicate title     | on / off                | off     | Content    |
-| Keep newlines in body    | on / off                | off     | Content    |
-| Show timestamp           | on / off                | on      | Content    |
-| Expand immediately       | on / off                | off     | Content    |
-| Show application icon     | on / off                | on      | Appearance |
-| Show notification icon    | on / off                | on      | Appearance |
-| Banner width             | 0-2000 px (0 = stock)   | 0       | Appearance |
-| Corner radius            | -1-200 px (-1 = stock)  | -1      | Appearance |
-| Font scale               | 50-200 % (100 = stock)  | 100     | Appearance |
+| Setting                         | Values                 | Default | Group      |
+| ------------------------------- | ---------------------- | ------- | ---------- |
+| Horizontal position             | left / center / right  | center  | Position   |
+| Vertical position               | top / center / bottom  | top     | Position   |
+| Horizontal padding              | 0-400 px               | 0       | Position   |
+| Vertical padding                | 0-400 px               | 0       | Position   |
+| Hold for menus on the same side | on / off               | off     | Position   |
+| Hide duplicate title            | on / off               | off     | Content    |
+| Keep newlines in body           | on / off               | off     | Content    |
+| Show timestamp                  | on / off               | on      | Content    |
+| Expand immediately              | on / off               | off     | Content    |
+| Show application icon           | on / off               | on      | Appearance |
+| Show notification icon          | on / off               | on      | Appearance |
+| Banner width                    | 0-2000 px (0 = stock)  | 0       | Appearance |
+| Corner radius                   | -1-200 px (-1 = stock) | -1      | Appearance |
+| Font scale                      | 50-200 % (100 = stock) | 100     | Appearance |
 
 The defaults reproduce GNOME's stock banner exactly. To put the banner in the
 bottom-right, set horizontal to `right`, vertical to `bottom`, and a padding such
@@ -73,6 +74,12 @@ in the same panel box). The getter therefore returns `Clutter.ActorAlign.FILL`
 banners only while the notification list (`dateMenu`) is open — the menu that
 actually shows the same notifications. See
 [docs/ADR/0012](docs/ADR/0012-suppress-banners-only-for-the-notification-list.md).
+
+If a banner moved to a corner overlaps an open panel menu on the same side (for
+example Quick Settings with a bottom-right banner), enable "Hold for menus on the
+same side": the getter then returns the banner's side, and menus in that panel
+box hold banners while open, as GNOME does for the clock menu. See
+[docs/ADR/0018](docs/ADR/0018-opt-in-hold-for-same-side-menus.md).
 
 ## Compatibility
 

@@ -46,7 +46,7 @@ banner structure used for decoration was introduced in GNOME 46.
 | `Extension`, `InjectionManager`, `getSettings()`  | gnome-shell  | 46-50     | `js/extensions/extension.js` (ESM extensions)    |
 | `Main.messageTray`                                | gnome-shell  | 46-50     | singleton, `js/ui/main.js`                       |
 | `MessageTray._bannerBin`                          | gnome-shell  | 46-50     | private banner container                         |
-| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 46-50     | setter guards x_align (position); getter returns FILL to disable side-based banner suppression (ADR 0012) |
+| `MessageTray.prototype` `bannerAlignment` accessor| gnome-shell  | 46-50     | setter guards x_align (position); getter returns FILL to disable side-based banner suppression (ADR 0012), or the configured side when `hold-for-same-side-menus` is on (ADR 0018) |
 | `Main.panel.statusArea.dateMenu.menu`             | gnome-shell  | 46-50     | `open-state-changed` drives banner suppression (ADR 0012) |
 | `MessageTray.prototype` `bannerBlocked` accessor  | gnome-shell  | 46-50     | written (not redefined) to suppress while the list is open |
 | `MessageTray.prototype._showNotification`         | gnome-shell  | 46-50     | overridden to decorate `this._banner`            |

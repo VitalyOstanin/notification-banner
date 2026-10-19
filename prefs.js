@@ -108,6 +108,11 @@ export default class NotificationBannerPrefs extends ExtensionPreferences {
         subtitle: "Ignored when vertical position is center",
       }),
     );
+    group.add(
+      this._switchRow(settings, "hold-for-same-side-menus", "Hold for menus on the same side", {
+        subtitle: "Delay banners while a panel menu on the banner's side is open",
+      }),
+    );
   }
 
   _addContentGroup(page, settings) {

@@ -25,3 +25,4 @@ This directory records the technical decisions made for the
 | [0015](0015-preview-on-prefs-window-open.md)             | Also preview the position when the prefs window opens  | Superseded by [0016](0016-persistent-position-preview.md) |
 | [0016](0016-persistent-position-preview.md)             | Persistent position preview while the prefs window is open | Accepted |
 | [0017](0017-guard-decorate-against-stale-override.md)   | Guard `_decorateBanner` against a stale override after disable | Accepted |
+| [0018](0018-opt-in-hold-for-same-side-menus.md)         | Opt-in hold for panel menus on the banner's side       | Accepted |
