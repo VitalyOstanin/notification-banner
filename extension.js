@@ -115,8 +115,10 @@ export default class NotificationBannerExtension extends Extension {
   // rebuilds; redefine the accessor (present on 46-50) to ignore external writes.
   _installBannerAlignmentOverride(proto) {
     this._bannerAlignmentProto = proto;
-    this._originalBannerAlignmentDesc =
-      Object.getOwnPropertyDescriptor(proto, "bannerAlignment") ?? null;
+    this._originalBannerAlignmentDesc = Object.getOwnPropertyDescriptor(
+      proto,
+      "bannerAlignment",
+    );
 
     const settings = this._settings;
     Object.defineProperty(proto, "bannerAlignment", {
@@ -128,15 +130,11 @@ export default class NotificationBannerExtension extends Extension {
         // (ADR 0018).
         if (!settings.get_boolean("hold-for-same-side-menus"))
           return Clutter.ActorAlign.FILL;
-        return (
-          H_ALIGN[settings.get_string("horizontal-position")] ??
-          Clutter.ActorAlign.CENTER
-        );
+        return H_ALIGN[settings.get_string("horizontal-position")];
       },
       set(_align) {
         this._bannerBin.set_x_align(
-          H_ALIGN[settings.get_string("horizontal-position")] ??
-            Clutter.ActorAlign.CENTER,
+          H_ALIGN[settings.get_string("horizontal-position")],
         );
       },
     });
@@ -151,13 +149,11 @@ export default class NotificationBannerExtension extends Extension {
   // standard panel boxes. The write goes through the bannerBlocked accessor,
   // cooperating with any mute guard layered on it.
   _installDateMenuSuppression() {
-    this._dateMenu = Main.panel?.statusArea?.dateMenu ?? null;
-    if (!this._dateMenu?.menu) return;
+    this._dateMenu = Main.panel.statusArea.dateMenu;
     this._dateMenu.menu.connectObject(
       "open-state-changed",
       (_menu, isOpen) => {
-        const tray = Main.messageTray;
-        if (tray) tray.bannerBlocked = isOpen;
+        Main.messageTray.bannerBlocked = isOpen;
       },
       this,
     );
@@ -184,8 +180,8 @@ export default class NotificationBannerExtension extends Extension {
     const padH = this._settings.get_int("padding-horizontal");
     const padV = this._settings.get_int("padding-vertical");
 
-    bin.set_x_align(H_ALIGN[h] ?? Clutter.ActorAlign.CENTER);
-    bin.set_y_align(V_ALIGN[v] ?? Clutter.ActorAlign.START);
+    bin.set_x_align(H_ALIGN[h]);
+    bin.set_y_align(V_ALIGN[v]);
 
     // Padding via translation (a paint-time offset), so it never disturbs the
     // show/hide `y` animation. Points inward from the anchored edge.
@@ -296,20 +292,20 @@ export default class NotificationBannerExtension extends Extension {
     // during screen unlock); bail out instead of dereferencing null settings.
     if (!banner || !settings) return;
 
-    const notification = tray._notification ?? null;
+    const notification = tray._notification;
     // Reset to stock, then apply only enabled options, so toggles turned off
     // revert without a per-property "else" branch.
     this._resetBannerDecorations(banner, notification);
 
     if (
       settings.get_boolean("dedupe-title") &&
-      banner.title === (notification?.source?.title ?? null)
+      banner.title === notification.source.title
     )
       banner.titleLabel.visible = false;
 
     if (settings.get_boolean("body-multiline"))
       banner._bodyLabel.setMarkup(
-        notification?.body ?? "",
+        notification.body ?? "",
         banner._useBodyMarkup,
       );
 
@@ -320,10 +316,8 @@ export default class NotificationBannerExtension extends Extension {
     if (settings.get_boolean("force-expand")) tray._expandBanner(true);
 
     // App icon has no named field; find it by style class.
-    if (!settings.get_boolean("show-app-icon")) {
-      const appIcon = this._styleChild(banner._header, "message-source-icon");
-      if (appIcon) appIcon.visible = false;
-    }
+    if (!settings.get_boolean("show-app-icon"))
+      this._styleChild(banner._header, "message-source-icon").visible = false;
 
     if (!settings.get_boolean("show-notification-icon"))
       banner._icon.visible = false;
@@ -348,13 +342,12 @@ export default class NotificationBannerExtension extends Extension {
   _resetBannerDecorations(banner, notification) {
     banner.titleLabel.visible = true;
     banner._header.timeLabel.visible = true;
-    const appIcon = this._styleChild(banner._header, "message-source-icon");
-    if (appIcon) appIcon.visible = true;
+    this._styleChild(banner._header, "message-source-icon").visible = true;
     // As in messageList.js `set icon`: shown only when the notification has one.
     banner._icon.visible = !!banner._icon.gicon;
     banner.set_style(null);
     banner._bodyLabel.setMarkup(
-      (notification?.body ?? "").replace(/\n/g, " "),
+      (notification.body ?? "").replace(/\n/g, " "),
       banner._useBodyMarkup,
     );
   }
@@ -369,7 +362,6 @@ export default class NotificationBannerExtension extends Extension {
   // objects destroyed on hide, so the cache lives exactly as long as the actor
   // and needs no invalidation; it spares the recursive walk on every redecorate.
   _styleChild(actor, styleClass) {
-    if (!actor) return null;
     const cache = (actor._nbStyleChildren ??= new Map());
     if (cache.has(styleClass)) return cache.get(styleClass);
     const found = this._findByStyleClass(actor, styleClass);
@@ -378,7 +370,6 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   _findByStyleClass(actor, styleClass) {
-    if (!actor) return null;
     const children = actor.get_children();
     for (const child of children) {
       if (child.has_style_class_name?.(styleClass)) return child;
@@ -389,39 +380,31 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   disable() {
-    this._settings?.disconnectObject(this);
+    this._settings.disconnectObject(this);
 
-    this._dateMenu?.menu?.disconnectObject(this);
+    this._dateMenu.menu.disconnectObject(this);
     // A block set while the list or a same-side menu is open would outlive
     // disable: panel.js lifts it on close only while the alignment still
     // matches. The accessor still respects an active mute guard layered on it.
     if (
-      this._dateMenu?.menu?.isOpen ||
+      this._dateMenu.menu.isOpen ||
       this._settings.get_boolean("hold-for-same-side-menus")
     )
       Main.messageTray.bannerBlocked = false;
     this._dateMenu = null;
 
-    if (this._bannerAlignmentProto) {
-      if (this._originalBannerAlignmentDesc) {
-        Object.defineProperty(
-          this._bannerAlignmentProto,
-          "bannerAlignment",
-          this._originalBannerAlignmentDesc,
-        );
-      } else {
-        delete this._bannerAlignmentProto.bannerAlignment;
-      }
-      this._bannerAlignmentProto = null;
-      this._originalBannerAlignmentDesc = null;
-    }
+    Object.defineProperty(
+      this._bannerAlignmentProto,
+      "bannerAlignment",
+      this._originalBannerAlignmentDesc,
+    );
+    this._bannerAlignmentProto = null;
+    this._originalBannerAlignmentDesc = null;
 
-    if (this._bannerBin && this._original) {
-      this._bannerBin.set_x_align(this._original.xAlign);
-      this._bannerBin.set_y_align(this._original.yAlign);
-      this._bannerBin.translation_x = this._original.translationX;
-      this._bannerBin.translation_y = this._original.translationY;
-    }
+    this._bannerBin.set_x_align(this._original.xAlign);
+    this._bannerBin.set_y_align(this._original.yAlign);
+    this._bannerBin.translation_x = this._original.translationX;
+    this._bannerBin.translation_y = this._original.translationY;
 
     this._undecorateBanner(this._messageTray._banner);
 
@@ -436,10 +419,8 @@ export default class NotificationBannerExtension extends Extension {
   }
 
   _teardown() {
-    if (this._injectionManager) {
-      this._injectionManager.clear();
-      this._injectionManager = null;
-    }
+    this._injectionManager.clear();
+    this._injectionManager = null;
     this._original = null;
     this._bannerBin = null;
     this._messageTray = null;
