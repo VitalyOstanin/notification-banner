@@ -52,5 +52,11 @@ set the same value, so the double write is harmless.
   panel menu holds a modal grab (`PopupMenuManager._onMenuOpenState` calls
   `Main.pushModal`, gnome-46 through gnome-50), so the preferences window cannot
   be used at that moment; no extra handling is added.
+- Disabling the extension while a same-side menu is open restores the stock
+  getter, so `panel.js` no longer matches that menu on close and would leave
+  `bannerBlocked` set until relogin. `disable()` therefore lifts the block when
+  the option is on, as it already does for an open `dateMenu`. Only `panel.js`
+  writes `bannerBlocked` in gnome-46 through gnome-50, so no other block is
+  lifted by mistake.
 - Verified on gnome-46 through gnome-50: `panel.js` `_onMenuSet()` reads
   `Main.messageTray.bannerAlignment` inside the `open-state-changed` handler.

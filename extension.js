@@ -391,13 +391,15 @@ export default class NotificationBannerExtension extends Extension {
   disable() {
     this._settings?.disconnectObject(this);
 
-    if (this._dateMenu?.menu) {
-      this._dateMenu.menu.disconnectObject(this);
-      // If disabled while the list is open we may have left a block set; lift it
-      // (the accessor still respects an active mute guard layered on it).
-      if (this._dateMenu.menu.isOpen)
-        Main.messageTray.bannerBlocked = false;
-    }
+    this._dateMenu?.menu?.disconnectObject(this);
+    // A block set while the list or a same-side menu is open would outlive
+    // disable: panel.js lifts it on close only while the alignment still
+    // matches. The accessor still respects an active mute guard layered on it.
+    if (
+      this._dateMenu?.menu?.isOpen ||
+      this._settings.get_boolean("hold-for-same-side-menus")
+    )
+      Main.messageTray.bannerBlocked = false;
     this._dateMenu = null;
 
     if (this._bannerAlignmentProto) {
